@@ -9,21 +9,26 @@ import cv2
 
 from tqdm import tqdm
 
-# Load configuration
-with open("config.yaml", "r") as file:
-    config = yaml.safe_load(file)
 
-input_dir = config["input_dir"]
-output_dir = config["output_dir"]
-coco_labels = config["coco_labels"]
-box_thresh = config["threshold"]
-# Ensure output directory exists
-os.makedirs(output_dir, exist_ok=True)
+def load_config(config_path: str) -> dict:
+    """
+    """
+    with open(config_path, "r") as file:
+        config = yaml.safe_load(file)
+    return config
 
+def main():
+    config = load_config("config.yaml")
+    input_dir = config["input_dir"]
+    output_dir = config["output_dir"]
+    coco_labels = config["coco_labels"]
+    box_thresh = config["threshold"]
+    
+    # Ensure output directory exists
+    os.makedirs(output_dir, exist_ok=True)
 
-
-# * Use GPU for Inference
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # * Use GPU for Inference
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 # Load pre-trained object detection model
