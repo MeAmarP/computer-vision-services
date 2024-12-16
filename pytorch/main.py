@@ -24,7 +24,7 @@ def load_model_from_config(config: dict, device: torch.device):
     weights_class = getattr(detection, model_weights_class_name)
     weights = getattr(weights_class, model_weights_name)
 
-    model = model_fn(weights=weights, box_score_thresh=threshold).to(device)
+    model = model_fn(weights=weights, score_thresh=threshold).to(device)
     model.eval()
     return model
 
