@@ -107,10 +107,10 @@ If you want to run the script locally without Docker:
 ## **Example Outputs**
 
 ### **Input Image**
-![Input Example](https://via.placeholder.com/300?text=Input+Image)
+![Input Example](https://github.com/MeAmarP/computer-vision-services/blob/b01a7e4e5fed2d4fc3021d6369e922144000c8ef/pytorch/data_input/images/1.jpg)
 
 ### **Output Image**
-![Output Example](https://via.placeholder.com/300?text=Annotated+Output)
+![Output Example](https://github.com/MeAmarP/computer-vision-services/blob/8ef1a564b7e5d1bf1b689bccb2784eba294719eb/pytorch/infer_output/annotated_1.jpg)
 
 
 ## Contact
