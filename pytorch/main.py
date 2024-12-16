@@ -33,7 +33,9 @@ def main():
     input_dir = config["input_dir"]
     output_dir = config["output_dir"]
     labels = config["coco_labels"]
-    os.makedirs(output_dir, exist_ok=True)
+    model_name = config["model_name"]
+    infer_output_dir = os.path.join(output_dir, model_name)
+    os.makedirs(infer_output_dir, exist_ok=True)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = load_model_from_config(config, device)
@@ -45,7 +47,8 @@ def main():
         if filename.lower().endswith((".jpg", ".jpeg", ".png")):
             annotated_image = process_image(input_path, model, device, labels, palette)
             if annotated_image:
-                annotated_image.save(os.path.join(output_dir, f"annotated_{filename}"))
+
+                annotated_image.save(os.path.join(infer_output_dir, f"annotated_{filename}"))
         elif filename.lower().endswith(".mp4"):
             pass
             # process_video(input_path, model, device, labels, palette, output_dir)
