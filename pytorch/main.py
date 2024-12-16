@@ -3,7 +3,7 @@ import yaml
 import torch
 from tqdm import tqdm
 
-from infer import process_image
+from infer import process_image, process_video
 from utils import generate_color_palette
 
 def load_config(config_path: str) -> dict:
@@ -50,8 +50,7 @@ def main():
 
                 annotated_image.save(os.path.join(infer_output_dir, f"annotated_{filename}"))
         elif filename.lower().endswith(".mp4"):
-            pass
-            # process_video(input_path, model, device, labels, palette, output_dir)
+            process_video(input_path, model, device, labels, palette, infer_output_dir)
 
 if __name__ == "__main__":
     main()
