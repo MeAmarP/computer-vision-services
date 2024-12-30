@@ -1,4 +1,4 @@
-input_dir: "data_input/images/"           # Directory for input images/videos
+input_dir: "data_input/videos/"           # Directory for input images/videos
 output_dir: "infer_output/"         # Directory to save annotated outputs
 model_name: "fcos_resnet50_fpn"  # Model name for object detection
 model_weights_class: "FCOS_ResNet50_FPN_Weights"
