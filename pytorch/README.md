@@ -63,19 +63,15 @@ coco_labels:             # Labels to include in the output
 
 ### **5. Build the Docker Image**
 Build the Docker image with the following command:
+
 ```bash
-docker build -t image-object-service .
+docker build --pull --no-cache -t det-service .
 ```
 
-
 ### **6. Run the Docker Container**
-Use the `-v` flag to map your local input and output directories to the container.
 
 ```bash
-docker run --gpus all \
-  -v $(pwd)/data_input:app/data_input \
-  -v $(pwd)/infer_output:app/infer_output \
-  image-object-service
+docker run --gpus all -v $(pwd)/pytorch:/app det-service
 ```
 
 ## **Customization**
