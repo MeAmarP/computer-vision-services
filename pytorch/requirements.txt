@@ -2,6 +2,7 @@ torch
 torchvision
 numpy
 Pillow
-opencv-python-headless==4.8.0.74
+opencv-python==4.8.0.74
 PyYAML
 tqdm
+av
