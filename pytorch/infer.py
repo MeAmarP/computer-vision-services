@@ -7,6 +7,7 @@ from PIL import ImageDraw, ImageFont
 from tqdm import tqdm
 
 import torchvision.transforms as T
+from torchvision.io import read_video, write_video
 
 transform = T.Compose([T.ToTensor()])
 
@@ -65,7 +66,6 @@ def process_video(video_path, model, device, labels, palette, infer_output_dir, 
     # Define output path
     output_path = os.path.join(infer_output_dir, f"annotated_{os.path.basename(video_path)}")
     os.makedirs(infer_output_dir, exist_ok=True)
-
     # Open the video file
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
@@ -117,9 +117,10 @@ def process_video(video_path, model, device, labels, palette, infer_output_dir, 
     out.release()
     print(f"Annotated video saved to {output_path}")
 
+
 # def process_video(video_path, model, device, labels, palette, infer_output_dir, fps=30):
 #     """
-#     Processes a video for object detection and creates an annotated video using TorchVision utilities.
+#     Processes a video for object detection and creates an annotated video using torchvision.io.
 
 #     Args:
 #         video_path (str): Path to the input video.
@@ -130,31 +131,35 @@ def process_video(video_path, model, device, labels, palette, infer_output_dir, 
 #         infer_output_dir (str): Directory to save annotated video.
 #         fps (float): Frames per second for the output video.
 #     """
-# from torchvision.io import read_video, write_video
 #     # Define output path
 #     output_path = os.path.join(infer_output_dir, f"annotated_{os.path.basename(video_path)}")
+#     os.makedirs(infer_output_dir, exist_ok=True)
 
-#     # Read video frames and metadata
-#     video_frames, _, info = read_video(video_path, pts_unit="sec")
-#     # width, height = video_frames.shape[2], video_frames.shape[1]
+#     # Read the video
+#     video_frames, _, info = read_video(video_path)
+#     input_fps = info['video_fps']
+#     fps = input_fps if fps is None else fps
+
+#     # Process each frame
 #     annotated_frames = []
-
-#     for i, frame in enumerate(tqdm(video_frames, colour='green')):
-#         # Convert frame (Torch tensor) to a PIL image
+#     for frame in tqdm(video_frames, desc="Processing frames", colour="green"):
+#         # Convert the frame to PIL image
 #         frame_image = Image.fromarray(frame.numpy())
 
 #         # Convert the image to a tensor and perform inference
-#         input_tensor = transform(frame_image).unsqueeze(0).to(device)
+#         input_tensor = T.ToTensor()(frame_image).unsqueeze(0).to(device)
 #         with torch.no_grad():
 #             predictions = model(input_tensor)[0]
 
 #         # Annotate the frame
 #         annotated_image = annotate_image(frame_image, predictions, labels, palette)
 
-#         # Convert the annotated frame back to a Torch tensor
-#         annotated_frame = torch.from_numpy(np.array(annotated_image, dtype=np.uint8)).to(dtype=torch.uint8)
-#         annotated_frames.append(annotated_frame)
+#         # Convert annotated image back to NumPy array
+#         annotated_frame = np.array(annotated_image)
+#         annotated_frames.append(torch.from_numpy(annotated_frame))
 
-#     # Stack frames and write the output video
-#     annotated_video = torch.stack(annotated_frames)
-#     write_video(output_path, annotated_video, fps=fps, video_codec="h264", options={"crf": "20"})
+#     # Stack frames and write the video
+#     annotated_frames = torch.stack(annotated_frames)
+#     write_video(output_path, annotated_frames, fps=fps)
+
+#     print(f"Annotated video saved to {output_path}")
