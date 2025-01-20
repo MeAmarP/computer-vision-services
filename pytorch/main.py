@@ -41,13 +41,17 @@ def main():
     model = load_model_from_config(config, device)
 
     palette = generate_color_palette(labels)
-
+    print("\n")
+    print("---"*20)
+    print(os.listdir(input_dir))
+    print("---"*20)
+    print("\n")
     for filename in tqdm(os.listdir(input_dir)):
-        input_path = os.path.join(input_dir, filename)
+        input_path = os.path.abspath(os.path.join(input_dir, filename))
+        print(f"Processing {input_path}...")
         if filename.lower().endswith((".jpg", ".jpeg", ".png")):
             annotated_image = process_image(input_path, model, device, labels, palette)
             if annotated_image:
-
                 annotated_image.save(os.path.join(infer_output_dir, f"annotated_{filename}"))
         elif filename.lower().endswith(".mp4"):
             process_video(input_path, model, device, labels, palette, infer_output_dir)
