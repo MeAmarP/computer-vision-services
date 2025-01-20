@@ -68,11 +68,16 @@ def process_video(video_path, model, device, labels, palette, infer_output_dir, 
 
     # Open the video file
     cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        print(f"Error opening video file {video_path}")
+        return
 
     # Get video properties
     frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     input_fps = cap.get(cv2.CAP_PROP_FPS)
+
+    print(f" Frame width: {frame_width}\n Frame height: {frame_height}\n Input FPS: {input_fps}")
     fps = input_fps if fps is None else fps
 
     # Define video writer
