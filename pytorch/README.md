@@ -32,15 +32,17 @@ cd computer-vision-services
 Ensure your project directories are structured like this:
 ```
 computer-vision-services/
-│
-├── config.yaml          # Configuration file for input/output directories, model, etc.
-├── Dockerfile           # Dockerfile for building the service
-├── main.py              # Main script for inference
-├── requirements.txt     # Python dependencies
-├── data_input/        # Sample input data
-│   ├── images/          # Place your images here
-│   └── videos/          # Place your videos here
-└── infer_output/        # Output directory (auto-created if missing)
+|──  pytorch/
+|   ├── config.yaml          # Configuration file for input/output directories, model, etc.
+|   ├── Dockerfile           # Dockerfile for building the service
+|   ├── infer.py             # Image and Video pre & post process for inference
+|   ├── main.py              # Main script for inference
+|   ├── utils.py             # Utlity functions
+|   ├── myenv.yml            # Python Conda env file
+|   ├── data_input/          # Sample input data
+|   │   ├── images/          # Place your images here
+|   │   └── videos/          # Place your videos here
+|   └── infer_output/        # Output directory (auto-created if missing)
 ```
 
 ### **4. Configuration**
@@ -62,7 +64,7 @@ coco_labels:             # Labels to include in the output
 
 
 ### **5. Build the Docker Image**
-Build the Docker image with the following command:
+Build the Docker image with the following command: Make sure you are inside `pytorch/` dirctory 
 
 ```bash
 docker build --pull --no-cache -t det-service .
@@ -91,9 +93,13 @@ If you want to run the script locally without Docker:
 1. Install Python 3.9+.
 2. Install dependencies:
    ```bash
-   pip install -r requirements.txt
+   conda env create -f myenv.yml
    ```
-3. Run the script:
+3. Activate conda env
+   ```bash
+   conda activate myenv
+   ```
+4. Run the script:
    ```bash
    python main.py
    ```
@@ -107,6 +113,9 @@ If you want to run the script locally without Docker:
 
 ### **Output Image**
 ![Output Example](https://github.com/MeAmarP/computer-vision-services/blob/8ef1a564b7e5d1bf1b689bccb2784eba294719eb/pytorch/infer_output/annotated_1.jpg)
+
+### **Output Video**
+![Output Example](https://github.com/MeAmarP/computer-vision-services/blob/036baf8aa925a927e9abd3635dd06626b2a99657/pytorch/infer_output/fcos_resnet50_fpn/annotated_palace.mp4)
 
 
 ## Contact
