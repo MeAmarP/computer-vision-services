@@ -71,7 +71,7 @@ docker build --pull --no-cache -t det-service .
 ### **6. Run the Docker Container**
 
 ```bash
-docker run --gpus all -v $(pwd)/pytorch:/app det-service
+docker run --gpus all --shm-size=4g -v $(pwd)/pytorch:/app det-service
 ```
 
 ## **Customization**
