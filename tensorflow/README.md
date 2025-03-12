@@ -1,15 +1,22 @@
-# **[WIP] PyTorch-TorchVision Computer Vision Service**
 
-A streamlined service to **run and test image classification, object detection, semantic segmentation, and keypoint detection models** available in TorchVision's model zoo. This GPU-enabled service leverages PyTorch and TorchVision to deliver efficient inference for a variety of computer vision tasks on both images and videos.
 
-NOTE: This version currently supports *Object Detection* models.
+
+---
+
+
+# **[WIP] Tensorflow-Keras Computer Vision Service**
+
+## **Objective**
+A streamlined service to **run and test image classification, object detection, semantic segmentation, and keypoint detection models** available in Tensorflow model garden. 
+
+NOTE: This version currently supports *Object Detection* models only.
 ---
 
 ## **Features**
-- **Pretrained Models**: Supports pretrained models available in [torchvision](https://pytorch.org/vision/stable/models.html#).
+- **Pretrained Models**: Supports pretrained models available in [Tensorflow Model Garden](https://github.com/tensorflow/models/tree/master/official).
 - **Multi-Input Support**: Processes both images and videos.
 - **Configurable**: Customize input directories, output directories, detection thresholds, and supported labels via a YAML configuration file.
-- **Dockerized**: Easy to deploy with GPU acceleration using NVIDIA Docker.
+- **Dockerized**: Easy to deploy with GPU acceleration using Docker.
 - **Annotations**: Outputs annotated images/videos with inference output.
 
 ## **Getting Started**
@@ -32,7 +39,7 @@ cd computer-vision-services
 Ensure your project directories are structured like this:
 ```
 computer-vision-services/
-|──  pytorch/
+|──  tensorflow/
 |   ├── config.yaml          # Configuration file for input/output directories, model, etc.
 |   ├── Dockerfile           # Dockerfile for building the service
 |   ├── infer.py             # Image and Video pre & post process for inference
