@@ -32,7 +32,7 @@ def main():
     config = load_config("config.yaml")
     input_dir = config["input_dir"]
     output_dir = config["output_dir"]
-    labels = config["coco_labels"]
+    labels = config["labels"]
     model_name = config["model_name"]
     infer_output_dir = os.path.join(output_dir, model_name)
     os.makedirs(infer_output_dir, exist_ok=True)
