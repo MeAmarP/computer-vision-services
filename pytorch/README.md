@@ -37,7 +37,7 @@ computer-vision-services/
 |   ├── Dockerfile           # Dockerfile for building the service
 |   ├── infer.py             # Image and Video pre & post process for inference
 |   ├── main.py              # Main script for inference
-|   ├── utils.py             # Utlity functions
+|   ├── utils.py             # Utility functions.
 |   ├── myenv.yml            # Python Conda env file
 |   ├── data_input/          # Sample input data
 |   │   ├── images/          # Place your images here
