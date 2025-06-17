@@ -64,7 +64,7 @@ coco_labels:             # Labels to include in the output
 
 
 ### **5. Build the Docker Image**
-Build the Docker image with the following command: Make sure you are inside `pytorch/` dirctory 
+Build the Docker image with the following command: Make sure you are inside `pytorch/` directory
 
 ```bash
 docker build --pull --no-cache -t det-service .
