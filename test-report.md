@@ -126,3 +126,9 @@ pytorch/utils.py          6      0   100%
 -----------------------------------------
 TOTAL                   255    156    39%
 5 passed in 3.20s
+## Wed 18 Jun 2025 08:40:13 PM IST
+ERROR: usage: pytest [options] [file_or_dir] [file_or_dir] [...]
+pytest: error: unrecognized arguments: --cov=pytorch --cov-report=term
+  inifile: None
+  rootdir: /home/mighty/Documents/workspace/computer-vision-services
+
