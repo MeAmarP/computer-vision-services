@@ -1,5 +1,5 @@
 # COCO object detection labels
-object_detection_coco:
+object_detection:
   - person
   - bicycle
   - car
