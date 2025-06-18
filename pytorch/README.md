@@ -106,13 +106,13 @@ If you want to run the script locally without Docker:
 ![Input Example](https://github.com/MeAmarP/computer-vision-services/blob/b01a7e4e5fed2d4fc3021d6369e922144000c8ef/pytorch/data_input/images/1.jpg)
 
 ### **Output Image: Object Detection**
-![Output Example - Object Detection](https://github.com/MeAmarP/computer-vision-services/blob/main/pytorch/infer_output/fcos_resnet50_fpn/annotated_1.jpg)
+![Output Example - Object Detection](https://github.com/MeAmarP/computer-vision-services/blob/master/pytorch/infer_output/fcos_resnet50_fpn/annotated_1.jpg)
 
 ### **Output Image: Semantic Segmentation**
-![Output Example - Segmentation](https://github.com/MeAmarP/computer-vision-services/blob/main/pytorch/infer_output/fcn_resnet50/annotated_1.jpg)
+![Output Example - Segmentation](https://github.com/MeAmarP/computer-vision-services/blob/master/pytorch/infer_output/fcn_resnet50/annotated_1.jpg)
 
 ### **Output Image: Image Classification**
-![Output Example - Classification](https://github.com/MeAmarP/computer-vision-services/blob/main/pytorch/infer_output/mobilenet_v3_large/annotated_1.jpg)
+![Output Example - Classification](https://github.com/MeAmarP/computer-vision-services/blob/master/pytorch/infer_output/mobilenet_v3_large/annotated_1.jpg)
 
 ## Contact
 **Author**: [MeAmarP](https://github.com/MeAmarP)
