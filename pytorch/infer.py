@@ -11,6 +11,16 @@ from torchvision.io import read_video, write_video
 
 transform = T.Compose([T.ToTensor()])
 
+# Transform pipeline used for image classification models
+classification_transform = T.Compose(
+    [
+        T.Resize(256),
+        T.CenterCrop(224),
+        T.ToTensor(),
+        T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ]
+)
+
 FONT_PATH = None  # Set this if you have a font file
 FONT_SIZE = 20
 
@@ -177,6 +187,74 @@ def process_video_segmentation(video_path, model, device, labels, palette, infer
         input_tensor = transform(frame_image).unsqueeze(0)
         output = predict_segmentation(model, device, input_tensor)
         annotated_image = annotate_segmentation(frame_image, output, labels, palette)
+        annotated_frame = np.array(annotated_image.convert("RGB"))
+        annotated_frame_bgr = cv2.cvtColor(annotated_frame, cv2.COLOR_RGB2BGR)
+        out.write(annotated_frame_bgr)
+
+    cap.release()
+    out.release()
+    print(f"Annotated video saved to {output_path}")
+
+
+def annotate_classification(image, probs, labels, topk=5):
+    """Annotate an image with classification results."""
+    draw = ImageDraw.Draw(image)
+    font = ImageFont.truetype(FONT_PATH, size=FONT_SIZE) if FONT_PATH else None
+    top_probs, top_ids = torch.topk(probs, k=min(topk, probs.shape[0]))
+    for i, (p, idx) in enumerate(zip(top_probs, top_ids)):
+        label_idx = idx.item()
+        label_name = labels[label_idx] if labels and label_idx < len(labels) else str(label_idx)
+        draw.text((10, 10 + i * FONT_SIZE), f"{label_name}: {p:.2f}", fill="white", font=font)
+    return image
+
+
+def process_image_classification(image_path, model, device, labels):
+    """Run image classification on a single image."""
+    try:
+        image = Image.open(image_path).convert("RGB")
+    except (FileNotFoundError, OSError) as e:
+        print(f"Error opening image {image_path}: {e}")
+        return None
+
+    input_tensor = classification_transform(image).unsqueeze(0).to(device)
+    with torch.no_grad():
+        outputs = model(input_tensor)
+        probs = torch.nn.functional.softmax(outputs[0], dim=0)
+
+    annotated_image = annotate_classification(image, probs, labels, topk=1)
+    return annotated_image
+
+
+def process_video_classification(video_path, model, device, labels, infer_output_dir, fps=30):
+    """Run classification on each frame of a video."""
+    output_path = os.path.join(infer_output_dir, f"annotated_{os.path.basename(video_path)}")
+    os.makedirs(infer_output_dir, exist_ok=True)
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        print(f"Error opening video file {video_path}")
+        return
+
+    frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    input_fps = cap.get(cv2.CAP_PROP_FPS)
+    fps = input_fps if fps is None else fps
+
+    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+    out = cv2.VideoWriter(output_path, fourcc, fps, (frame_width, frame_height))
+    frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    for _ in tqdm(range(frame_count), desc="Processing frames", colour="green"):
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        frame_image = Image.fromarray(frame_rgb)
+        input_tensor = classification_transform(frame_image).unsqueeze(0).to(device)
+        with torch.no_grad():
+            outputs = model(input_tensor)
+            probs = torch.nn.functional.softmax(outputs[0], dim=0)
+
+        annotated_image = annotate_classification(frame_image, probs, labels, topk=1)
         annotated_frame = np.array(annotated_image.convert("RGB"))
         annotated_frame_bgr = cv2.cvtColor(annotated_frame, cv2.COLOR_RGB2BGR)
         out.write(annotated_frame_bgr)

@@ -2,7 +2,7 @@
 
 A streamlined service to **run and test image classification, object detection, semantic segmentation, and keypoint detection models** available in TorchVision's model zoo. This GPU-enabled service leverages PyTorch and TorchVision to deliver efficient inference for a variety of computer vision tasks on both images and videos.
 
-NOTE: This version currently supports *Object Detection* models.
+NOTE: This version currently supports *Object Detection* and *Image Classification* models.
 ---
 
 ## **Features**
@@ -51,7 +51,7 @@ Edit the `config.yaml` file to specify the task, input and output directories, m
 ```yaml
 input_dir: "data_input/images"       # Path to input images/videos
 output_dir: "infer_output"     # Path to save annotated outputs
-task: "object_detection"               # or semantic_segmentation
+task: "object_detection"               # image_classification|semantic_segmentation
 model_name: "fasterrcnn_resnet50_fpn"  # Model name
 threshold: 0.5                # Confidence threshold for predictions
 coco_labels:             # Labels to include in the output

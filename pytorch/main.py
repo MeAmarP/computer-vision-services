@@ -8,6 +8,8 @@ from infer import (
     process_video,
     process_image_segmentation,
     process_video_segmentation,
+    process_image_classification,
+    process_video_classification,
 )
 from utils import generate_color_palette
 
@@ -28,6 +30,13 @@ def load_model_from_config(config: dict, device: torch.device):
 
         model_fn = getattr(segmentation, model_name)
         weights_class = getattr(segmentation, model_weights_class_name)
+        weights = getattr(weights_class, model_weights_name)
+        model = model_fn(weights=weights).to(device)
+    elif task == "image_classification":
+        import torchvision.models as models
+
+        model_fn = getattr(models, model_name)
+        weights_class = getattr(models, model_weights_class_name)
         weights = getattr(weights_class, model_weights_name)
         model = model_fn(weights=weights).to(device)
     else:  # object_detection or keypoint_detection
@@ -59,7 +68,7 @@ def main():
         labels_yaml = yaml.safe_load(f)
     labels = labels_yaml[task]
 
-    palette = generate_color_palette(labels)
+    palette = generate_color_palette(labels) if task != "image_classification" else None
     print("\n")
     print("---"*20)
     print(os.listdir(input_dir))
@@ -73,6 +82,10 @@ def main():
                 annotated_image = process_image_segmentation(
                     input_path, model, device, labels, palette
                 )
+            elif task == "image_classification":
+                annotated_image = process_image_classification(
+                    input_path, model, device, labels
+                )
             else:
                 annotated_image = process_image(
                     input_path, model, device, labels, palette
@@ -85,6 +98,10 @@ def main():
             if task == "semantic_segmentation":
                 process_video_segmentation(
                     input_path, model, device, labels, palette, infer_output_dir
+                )
+            elif task == "image_classification":
+                process_video_classification(
+                    input_path, model, device, labels, infer_output_dir
                 )
             else:
                 process_video(
