@@ -45,7 +45,6 @@ def main():
     config = load_config("config.yaml")
     input_dir = config["input_dir"]
     output_dir = config["output_dir"]
-    labels = config["coco_labels"]
     model_name = config["model_name"]
     task = config.get("task", "object_detection")
     infer_output_dir = os.path.join(output_dir, model_name)
@@ -53,6 +52,12 @@ def main():
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = load_model_from_config(config, device)
+
+    # Load labels from external YAML file based on task
+    labels_config_path = config["labels"][task]
+    with open(labels_config_path, "r") as f:
+        labels_yaml = yaml.safe_load(f)
+    labels = labels_yaml[task]
 
     palette = generate_color_palette(labels)
     print("\n")
