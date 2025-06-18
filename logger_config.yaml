@@ -1,0 +1,24 @@
+version: 1
+formatters:
+  standard:
+    format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+handlers:
+  console:
+    class: logging.StreamHandler
+    level: INFO
+    formatter: standard
+    stream: ext://sys.stdout
+  file:
+    class: logging.FileHandler
+    level: DEBUG
+    formatter: standard
+    filename: app.log
+    mode: a
+loggers:
+  pytorch:
+    level: DEBUG
+    handlers: [console, file]
+    propagate: False
+root:
+  level: DEBUG
+  handlers: [console, file]
