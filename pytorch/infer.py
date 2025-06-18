@@ -5,9 +5,12 @@ import torch
 import numpy as np
 from PIL import ImageDraw, ImageFont
 from tqdm import tqdm
+import logging
 
 import torchvision.transforms as T
 from torchvision.io import read_video, write_video
+
+logger = logging.getLogger(__name__)
 
 transform = T.Compose([T.ToTensor()])
 
@@ -25,21 +28,26 @@ FONT_PATH = None  # Set this if you have a font file
 FONT_SIZE = 20
 
 def predict(model, device, image_tensor):
+    """Run model prediction on a tensor."""
     image_tensor = image_tensor.to(device)
     with torch.no_grad():
         predictions = model(image_tensor)[0]
+    logger.debug("Predictions: %s", predictions)
     return predictions
 
 def annotate_image(image, predictions, labels, palette):
+    """Annotate detection results on an image."""
     draw = ImageDraw.Draw(image)
     font = ImageFont.truetype(FONT_PATH, size=FONT_SIZE) if FONT_PATH else None
 
     for box, label, score in zip(predictions['boxes'], predictions['labels'], predictions['scores']):
         label_idx = label.item()
-        if 1 <= label_idx <= len(labels):
-            coco_label_name = labels[label_idx - 1]
+        if 0 <= label_idx < len(labels):
+            coco_label_name = labels[label_idx]
         else:
             coco_label_name = "unknown"
+
+        logger.debug("Box: %s, Label: %s, Score: %.2f", box.tolist(), coco_label_name, score)
 
         box = box.tolist()
         draw.rectangle(box, outline=palette[coco_label_name], width=2)
@@ -47,10 +55,11 @@ def annotate_image(image, predictions, labels, palette):
     return image
 
 def process_image(image_path, model, device, labels, palette):
+    """Run detection on a single image file."""
     try:
         image = Image.open(image_path).convert("RGB")
     except (FileNotFoundError, OSError) as e:
-        print(f"Error opening image {image_path}: {e}")
+        logger.error("Error opening image %s: %s", image_path, e)
         return None
 
     input_tensor = transform(image).unsqueeze(0)
@@ -76,10 +85,11 @@ def process_video(video_path, model, device, labels, palette, infer_output_dir, 
     # Define output path
     output_path = os.path.join(infer_output_dir, f"annotated_{os.path.basename(video_path)}")
     os.makedirs(infer_output_dir, exist_ok=True)
+    logger.info("Processing video %s", video_path)
     # Open the video file
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
-        print(f"Error opening video file {video_path}")
+        logger.error("Error opening video file %s", video_path)
         return
 
     # Get video properties
@@ -87,7 +97,7 @@ def process_video(video_path, model, device, labels, palette, infer_output_dir, 
     frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     input_fps = cap.get(cv2.CAP_PROP_FPS)
 
-    print(f" Frame width: {frame_width}\n Frame height: {frame_height}\n Input FPS: {input_fps}")
+    logger.debug("Frame width: %s height: %s input_fps: %s", frame_width, frame_height, input_fps)
     fps = input_fps if fps is None else fps
 
     # Define video writer
@@ -125,7 +135,7 @@ def process_video(video_path, model, device, labels, palette, infer_output_dir, 
     # Release video objects
     cap.release()
     out.release()
-    print(f"Annotated video saved to {output_path}")
+    logger.info("Annotated video saved to %s", output_path)
 
 
 def predict_segmentation(model, device, image_tensor):
@@ -146,14 +156,17 @@ def annotate_segmentation(image, output, labels, palette, alpha=0.6):
     mask_image = Image.fromarray(color_mask)
     image = image.convert("RGBA")
     mask_image = mask_image.convert("RGBA")
-    return Image.blend(image, mask_image, alpha)
+    blended = Image.blend(image, mask_image, alpha)
+    blended = blended.convert("RGB")  # Convert back to RGB for consistency
+    logger.debug("Annotated segmentation with alpha %s", alpha)
+    return blended
 
 
 def process_image_segmentation(image_path, model, device, labels, palette):
     try:
         image = Image.open(image_path).convert("RGB")
     except (FileNotFoundError, OSError) as e:
-        print(f"Error opening image {image_path}: {e}")
+        logger.error("Error opening image %s: %s", image_path, e)
         return None
 
     input_tensor = transform(image).unsqueeze(0)
@@ -164,9 +177,10 @@ def process_image_segmentation(image_path, model, device, labels, palette):
 def process_video_segmentation(video_path, model, device, labels, palette, infer_output_dir, fps=30):
     output_path = os.path.join(infer_output_dir, f"annotated_{os.path.basename(video_path)}")
     os.makedirs(infer_output_dir, exist_ok=True)
+    logger.info("Processing segmentation video %s", video_path)
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
-        print(f"Error opening video file {video_path}")
+        logger.error("Error opening video file %s", video_path)
         return
 
     frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -193,7 +207,7 @@ def process_video_segmentation(video_path, model, device, labels, palette, infer
 
     cap.release()
     out.release()
-    print(f"Annotated video saved to {output_path}")
+    logger.info("Annotated video saved to %s", output_path)
 
 
 def annotate_classification(image, probs, labels, topk=5):
@@ -213,7 +227,7 @@ def process_image_classification(image_path, model, device, labels):
     try:
         image = Image.open(image_path).convert("RGB")
     except (FileNotFoundError, OSError) as e:
-        print(f"Error opening image {image_path}: {e}")
+        logger.error("Error opening image %s: %s", image_path, e)
         return None
 
     input_tensor = classification_transform(image).unsqueeze(0).to(device)
@@ -229,9 +243,10 @@ def process_video_classification(video_path, model, device, labels, infer_output
     """Run classification on each frame of a video."""
     output_path = os.path.join(infer_output_dir, f"annotated_{os.path.basename(video_path)}")
     os.makedirs(infer_output_dir, exist_ok=True)
+    logger.info("Processing classification video %s", video_path)
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
-        print(f"Error opening video file {video_path}")
+        logger.error("Error opening video file %s", video_path)
         return
 
     frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -261,6 +276,6 @@ def process_video_classification(video_path, model, device, labels, infer_output
 
     cap.release()
     out.release()
-    print(f"Annotated video saved to {output_path}")
+    logger.info("Annotated video saved to %s", output_path)
 
 
