@@ -3,7 +3,12 @@ import yaml
 import torch
 from tqdm import tqdm
 
-from infer import process_image, process_video
+from infer import (
+    process_image,
+    process_video,
+    process_image_segmentation,
+    process_video_segmentation,
+)
 from utils import generate_color_palette
 
 def load_config(config_path: str) -> dict:
@@ -12,19 +17,27 @@ def load_config(config_path: str) -> dict:
     return config
 
 def load_model_from_config(config: dict, device: torch.device):
-    import torchvision.models.detection as detection
+    task = config.get("task", "object_detection")
+    model_name = config["model_name"]
+    model_weights_class_name = config["model_weights_class"]
+    model_weights_name = config["model_weights"]
+    threshold = config.get("threshold", 0.5)
 
-    model_name = config["model_name"]  # e.g. "fasterrcnn_resnet50_fpn_v2"
-    model_weights_class_name = config["model_weights_class"]  # e.g. "FasterRCNN_ResNet50_FPN_V2_Weights"
-    model_weights_name = config["model_weights"]  # e.g. "COCO_V1"
-    threshold = config["threshold"]
+    if task == "semantic_segmentation":
+        import torchvision.models.segmentation as segmentation
 
-    # Dynamically get the model function, weights class, and specified weights
-    model_fn = getattr(detection, model_name)
-    weights_class = getattr(detection, model_weights_class_name)
-    weights = getattr(weights_class, model_weights_name)
+        model_fn = getattr(segmentation, model_name)
+        weights_class = getattr(segmentation, model_weights_class_name)
+        weights = getattr(weights_class, model_weights_name)
+        model = model_fn(weights=weights).to(device)
+    else:  # object_detection or keypoint_detection
+        import torchvision.models.detection as detection
 
-    model = model_fn(weights=weights, score_thresh=threshold).to(device)
+        model_fn = getattr(detection, model_name)
+        weights_class = getattr(detection, model_weights_class_name)
+        weights = getattr(weights_class, model_weights_name)
+        model = model_fn(weights=weights, score_thresh=threshold).to(device)
+
     model.eval()
     return model
 
@@ -34,6 +47,7 @@ def main():
     output_dir = config["output_dir"]
     labels = config["coco_labels"]
     model_name = config["model_name"]
+    task = config.get("task", "object_detection")
     infer_output_dir = os.path.join(output_dir, model_name)
     os.makedirs(infer_output_dir, exist_ok=True)
 
@@ -50,11 +64,27 @@ def main():
         input_path = os.path.abspath(os.path.join(input_dir, filename))
         print(f"Processing {input_path}...")
         if filename.lower().endswith((".jpg", ".jpeg", ".png")):
-            annotated_image = process_image(input_path, model, device, labels, palette)
+            if task == "semantic_segmentation":
+                annotated_image = process_image_segmentation(
+                    input_path, model, device, labels, palette
+                )
+            else:
+                annotated_image = process_image(
+                    input_path, model, device, labels, palette
+                )
             if annotated_image:
-                annotated_image.save(os.path.join(infer_output_dir, f"annotated_{filename}"))
+                annotated_image.save(
+                    os.path.join(infer_output_dir, f"annotated_{filename}")
+                )
         elif filename.lower().endswith(".mp4"):
-            process_video(input_path, model, device, labels, palette, infer_output_dir)
+            if task == "semantic_segmentation":
+                process_video_segmentation(
+                    input_path, model, device, labels, palette, infer_output_dir
+                )
+            else:
+                process_video(
+                    input_path, model, device, labels, palette, infer_output_dir
+                )
 
 if __name__ == "__main__":
     main()
