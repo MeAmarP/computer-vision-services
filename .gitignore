@@ -1,5 +1,5 @@
 
-infer_output/
+pytorch/infer_output/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
