@@ -156,7 +156,10 @@ def annotate_segmentation(image, output, labels, palette, alpha=0.6):
     mask_image = Image.fromarray(color_mask)
     image = image.convert("RGBA")
     mask_image = mask_image.convert("RGBA")
-    return Image.blend(image, mask_image, alpha)
+    blended = Image.blend(image, mask_image, alpha)
+    blended = blended.convert("RGB")  # Convert back to RGB for consistency
+    logger.debug("Annotated segmentation with alpha %s", alpha)
+    return blended
 
 
 def process_image_segmentation(image_path, model, device, labels, palette):
