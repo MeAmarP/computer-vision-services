@@ -37,7 +37,7 @@ def annotate_image(image, predictions, labels, palette):
     for box, label, score in zip(predictions['boxes'], predictions['labels'], predictions['scores']):
         label_idx = label.item()
         if 1 <= label_idx <= len(labels):
-            coco_label_name = labels[label_idx - 1]
+            coco_label_name = labels[label_idx]
         else:
             coco_label_name = "unknown"
 
