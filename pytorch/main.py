@@ -25,8 +25,6 @@ def load_model_from_config(config: dict, device: torch.device):
     model_weights_name = config["model_weights"]
     threshold = config.get("threshold", 0.5)
 
-    labels = config.get("coco_labels", [])
-
     if task == "semantic_segmentation":
         import torchvision.models.segmentation as segmentation
 
@@ -41,7 +39,6 @@ def load_model_from_config(config: dict, device: torch.device):
         weights_class = getattr(models, model_weights_class_name)
         weights = getattr(weights_class, model_weights_name)
         model = model_fn(weights=weights).to(device)
-        labels = list(weights.meta.get("categories", labels))
     else:  # object_detection or keypoint_detection
         import torchvision.models.detection as detection
 
@@ -51,7 +48,7 @@ def load_model_from_config(config: dict, device: torch.device):
         model = model_fn(weights=weights, score_thresh=threshold).to(device)
 
     model.eval()
-    return model, labels
+    return model
 
 def main():
     config = load_config("config.yaml")
@@ -63,7 +60,13 @@ def main():
     os.makedirs(infer_output_dir, exist_ok=True)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model, labels = load_model_from_config(config, device)
+    model = load_model_from_config(config, device)
+
+    # Load labels from external YAML file based on task
+    labels_config_path = config["labels"][task]
+    with open(labels_config_path, "r") as f:
+        labels_yaml = yaml.safe_load(f)
+    labels = labels_yaml[task]
 
     palette = generate_color_palette(labels) if task != "image_classification" else None
     print("\n")
