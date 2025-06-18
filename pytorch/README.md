@@ -8,7 +8,7 @@ NOTE: This version currently supports *Object Detection* and *Image Classificati
 ## **Features**
 - **Pretrained Models**: Supports pretrained models available in [torchvision](https://pytorch.org/vision/stable/models.html#).
 - **Multi-Input Support**: Processes both images and videos.
-- **Configurable**: Customize input directories, output directories, detection thresholds, and supported labels via a YAML configuration file.
+- **Configurable**: Customize input directories, output directories, and detection thresholds via a YAML configuration file.
 - **Dockerized**: Easy to deploy with GPU acceleration using NVIDIA Docker.
 - **Annotations**: Outputs annotated images/videos with inference output.
 
@@ -47,20 +47,13 @@ computer-vision-services/
 
 ### **4. Configuration**
 
-Edit the `config.yaml` file to specify the task, input and output directories, model name, detection thresholds, and supported class labels:
+Edit the `config.yaml` file to specify the task, input and output directories, model name and detection thresholds:
 ```yaml
 input_dir: "data_input/images"       # Path to input images/videos
 output_dir: "infer_output"     # Path to save annotated outputs
 task: "object_detection"               # image_classification|semantic_segmentation
 model_name: "fasterrcnn_resnet50_fpn"  # Model name
 threshold: 0.5                # Confidence threshold for predictions
-coco_labels:             # Labels to include in the output
-  - person
-  - car
-  - bicycle
-  - dog
-  - cat
-  - truck
 ```
 
 

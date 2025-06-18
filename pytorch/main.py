@@ -48,7 +48,7 @@ def load_model_from_config(config: dict, device: torch.device):
         model = model_fn(weights=weights, score_thresh=threshold).to(device)
 
     model.eval()
-    return model
+    return model, weights
 
 def main():
     config = load_config("config.yaml")
@@ -60,13 +60,9 @@ def main():
     os.makedirs(infer_output_dir, exist_ok=True)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = load_model_from_config(config, device)
+    model, weights = load_model_from_config(config, device)
 
-    # Load labels from external YAML file based on task
-    labels_config_path = config["labels"][task]
-    with open(labels_config_path, "r") as f:
-        labels_yaml = yaml.safe_load(f)
-    labels = labels_yaml[task]
+    labels = weights.meta["categories"]
 
     palette = generate_color_palette(labels) if task != "image_classification" else None
     print("\n")
