@@ -1,0 +1,28 @@
+[tool.poetry]
+name = "computer-vision-services"
+version = "0.1.0"
+description = "GPU-enabled computer vision inference utilities"
+authors = ["MeAmarP"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+torch = "*"
+torchvision = "*"
+Pillow = "*"
+numpy = "*"
+opencv-python-headless = "*"
+PyYAML = "*"
+tqdm = "*"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "*"
+pytest-cov = "*"
+
+[[tool.poetry.source]]
+name = "pytorch"
+url = "https://download.pytorch.org/whl/cpu"
+priority = "supplemental"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
