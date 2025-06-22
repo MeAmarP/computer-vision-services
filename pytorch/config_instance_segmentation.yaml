@@ -1,0 +1,7 @@
+input_dir: "data_input/images/"           # Directory for input images/videos
+output_dir: "infer_output/"         # Directory to save annotated outputs
+task: "instance_segmentation"            # image_classification|object_detection|semantic_segmentation|instance_segmentation|keypoint_detection
+model_name: "maskrcnn_resnet50_fpn"  # Instance segmentation model
+model_weights_class: "MaskRCNN_ResNet50_FPN_Weights"
+model_weights: "COCO_V1"
+threshold: 0.4               # Confidence threshold for predictions
