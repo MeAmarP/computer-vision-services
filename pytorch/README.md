@@ -27,6 +27,20 @@ cd computer-vision-services
   - Install Docker: [Docker Installation Guide](https://docs.docker.com/get-docker/)
   - Install NVIDIA Container Toolkit: [Toolkit Installation Guide](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html)
 
+### **Setup**
+
+1. Install [Poetry](https://python-poetry.org/docs/#installation).
+2. Install project dependencies:
+
+```bash
+poetry install              # base dependencies
+poetry install --with dev   # include test dependencies
+```
+
+### **Running Tests**
+
+Use the `run_tests.sh` script from the repository root. It wraps `pytest` and writes output to `test-report.md`. The script assumes dependencies were installed via Poetry.
+
 
 ### **3. Directory Structure**
 Ensure your project directories are structured like this:
