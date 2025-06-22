@@ -5,6 +5,7 @@ from pytorch.infer import (
     process_image_segmentation,
     process_image_classification,
     process_image_instance_segmentation,
+    process_image_keypoint,
 )
 from pytorch.utils import generate_color_palette
 
@@ -32,6 +33,15 @@ class DummyInstanceSegmentationModel:
             'labels': torch.tensor([0]),
             'scores': torch.tensor([0.9]),
             'masks': torch.zeros((1, 1, 10, 10))
+        }]
+
+class DummyKeypointModel:
+    def __call__(self, x):
+        return [{
+            'boxes': torch.tensor([[0, 0, 5, 5]], dtype=torch.float32),
+            'labels': torch.tensor([0]),
+            'scores': torch.tensor([0.9]),
+            'keypoints': torch.tensor([[[2.0, 2.0, 2.0]]])
         }]
 
 
@@ -73,4 +83,15 @@ def test_process_image_classification(tmp_path):
     create_test_image(img_path)
     labels = ['cat', 'dog']
     out_img = process_image_classification(str(img_path), DummyClassificationModel(), torch.device('cpu'), labels)
+    assert isinstance(out_img, Image.Image)
+
+
+def test_process_image_keypoint(tmp_path):
+    img_path = tmp_path / 'img.jpg'
+    create_test_image(img_path)
+    labels = ['person']
+    palette = generate_color_palette(labels)
+    out_img = process_image_keypoint(
+        str(img_path), DummyKeypointModel(), torch.device('cpu'), labels, palette
+    )
     assert isinstance(out_img, Image.Image)
