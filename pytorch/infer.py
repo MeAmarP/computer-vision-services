@@ -54,6 +54,35 @@ def annotate_image(image, predictions, labels, palette):
         draw.text((box[0], box[1]), f"{coco_label_name} ({score:.2f})", fill="white", font=font)
     return image
 
+def annotate_instance_segmentation(image, predictions, labels, palette, alpha=0.4):
+    """Annotate instance segmentation results on an image."""
+    image = image.convert("RGBA")
+    overlay = Image.new("RGBA", image.size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(overlay)
+    font = ImageFont.truetype(FONT_PATH, size=FONT_SIZE) if FONT_PATH else None
+
+    for box, mask, label, score in zip(
+        predictions["boxes"],
+        predictions.get("masks", torch.zeros(0)),
+        predictions["labels"],
+        predictions["scores"],
+    ):
+        label_idx = label.item()
+        label_name = labels[label_idx] if 0 <= label_idx < len(labels) else "unknown"
+        color = palette.get(label_name, (255, 255, 255))
+
+        mask_np = (mask[0] > 0.5).byte().cpu().numpy() * 255
+        mask_img = Image.fromarray(mask_np, mode="L")
+        colored = Image.new("RGBA", image.size, color + (int(255 * alpha),))
+        overlay.paste(colored, (0, 0), mask_img)
+
+        box = box.tolist()
+        draw.rectangle(box, outline=color, width=2)
+        draw.text((box[0], box[1]), f"{label_name} ({score:.2f})", fill="white", font=font)
+
+    blended = Image.alpha_composite(image, overlay)
+    return blended.convert("RGB")
+
 def process_image(image_path, model, device, labels, palette):
     """Run detection on a single image file."""
     try:
@@ -65,6 +94,20 @@ def process_image(image_path, model, device, labels, palette):
     input_tensor = transform(image).unsqueeze(0)
     predictions = predict(model, device, input_tensor)
     annotated_image = annotate_image(image, predictions, labels, palette)
+    return annotated_image
+
+
+def process_image_instance_segmentation(image_path, model, device, labels, palette):
+    """Run instance segmentation on a single image."""
+    try:
+        image = Image.open(image_path).convert("RGB")
+    except (FileNotFoundError, OSError) as e:
+        logger.error("Error opening image %s: %s", image_path, e)
+        return None
+
+    input_tensor = transform(image).unsqueeze(0)
+    predictions = predict(model, device, input_tensor)
+    annotated_image = annotate_instance_segmentation(image, predictions, labels, palette)
     return annotated_image
 
 
@@ -133,6 +176,45 @@ def process_video(video_path, model, device, labels, palette, infer_output_dir, 
         out.write(annotated_frame_bgr)
 
     # Release video objects
+    cap.release()
+    out.release()
+    logger.info("Annotated video saved to %s", output_path)
+
+
+def process_video_instance_segmentation(video_path, model, device, labels, palette, infer_output_dir, fps=30):
+    """Process a video for instance segmentation."""
+    output_path = os.path.join(infer_output_dir, f"annotated_{os.path.basename(video_path)}")
+    os.makedirs(infer_output_dir, exist_ok=True)
+    logger.info("Processing instance segmentation video %s", video_path)
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        logger.error("Error opening video file %s", video_path)
+        return
+
+    frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    input_fps = cap.get(cv2.CAP_PROP_FPS)
+    fps = input_fps if fps is None else fps
+
+    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+    out = cv2.VideoWriter(output_path, fourcc, fps, (frame_width, frame_height))
+    frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    for _ in tqdm(range(frame_count), desc="Processing frames", colour="green"):
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        frame_image = Image.fromarray(frame_rgb)
+        input_tensor = transform(frame_image).unsqueeze(0).to(device)
+        with torch.no_grad():
+            predictions = model(input_tensor)[0]
+
+        annotated_image = annotate_instance_segmentation(frame_image, predictions, labels, palette)
+        annotated_frame = np.array(annotated_image)
+        annotated_frame_bgr = cv2.cvtColor(annotated_frame, cv2.COLOR_RGB2BGR)
+        out.write(annotated_frame_bgr)
+
     cap.release()
     out.release()
     logger.info("Annotated video saved to %s", output_path)
