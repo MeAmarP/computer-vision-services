@@ -1,8 +1,8 @@
-# **[WIP] PyTorch-TorchVision Computer Vision Service**
+# **PyTorch-TorchVision Computer Vision Service**
 
 A streamlined service to **run and test image classification, object detection, semantic segmentation, and keypoint detection models** available in TorchVision's model zoo. This GPU-enabled service leverages PyTorch and TorchVision to deliver efficient inference for a variety of computer vision tasks on both images and videos.
 
-NOTE: This version currently supports *Object Detection*, *Semantic Segmentation*, *Instance Segmentation* and *Image Classification* models.
+NOTE: This version currently supports *Object Detection*, *Semantic Segmentation*, *Instance Segmentation*, *Keypoint Detection* and *Image Classification* models.
 ---
 
 ## **Features**

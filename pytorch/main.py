@@ -9,6 +9,8 @@ from infer import (
     process_video,
     process_image_instance_segmentation,
     process_video_instance_segmentation,
+    process_image_keypoint,
+    process_video_keypoint,
     process_image_segmentation,
     process_video_segmentation,
     process_image_classification,
@@ -90,6 +92,10 @@ def main():
                 annotated_image = process_image_instance_segmentation(
                     input_path, model, device, labels, palette
                 )
+            elif task == "keypoint_detection":
+                annotated_image = process_image_keypoint(
+                    input_path, model, device, labels, palette
+                )
             elif task == "image_classification":
                 annotated_image = process_image_classification(
                     input_path, model, device, labels
@@ -109,6 +115,10 @@ def main():
                 )
             elif task == "instance_segmentation":
                 process_video_instance_segmentation(
+                    input_path, model, device, labels, palette, infer_output_dir
+                )
+            elif task == "keypoint_detection":
+                process_video_keypoint(
                     input_path, model, device, labels, palette, infer_output_dir
                 )
             elif task == "image_classification":

@@ -83,6 +83,33 @@ def annotate_instance_segmentation(image, predictions, labels, palette, alpha=0.
     blended = Image.alpha_composite(image, overlay)
     return blended.convert("RGB")
 
+def annotate_keypoints(image, predictions, labels, palette):
+    """Annotate keypoint detection results on an image."""
+    draw = ImageDraw.Draw(image)
+    font = ImageFont.truetype(FONT_PATH, size=FONT_SIZE) if FONT_PATH else None
+
+    for box, kpts, label, score in zip(
+        predictions["boxes"],
+        predictions.get("keypoints", torch.zeros(0)),
+        predictions["labels"],
+        predictions["scores"],
+    ):
+        label_idx = label.item()
+        label_name = labels[label_idx] if 0 <= label_idx < len(labels) else "unknown"
+        color = palette.get(label_name, (255, 255, 255))
+
+        box = box.tolist()
+        draw.rectangle(box, outline=color, width=2)
+        draw.text((box[0], box[1]), f"{label_name} ({score:.2f})", fill="white", font=font)
+
+        for kp in kpts:
+            x, y, v = kp.tolist()
+            if v > 0:
+                r = 3
+                draw.ellipse((x - r, y - r, x + r, y + r), fill=color)
+
+    return image
+
 def process_image(image_path, model, device, labels, palette):
     """Run detection on a single image file."""
     try:
@@ -108,6 +135,20 @@ def process_image_instance_segmentation(image_path, model, device, labels, palet
     input_tensor = transform(image).unsqueeze(0)
     predictions = predict(model, device, input_tensor)
     annotated_image = annotate_instance_segmentation(image, predictions, labels, palette)
+    return annotated_image
+
+
+def process_image_keypoint(image_path, model, device, labels, palette):
+    """Run keypoint detection on a single image."""
+    try:
+        image = Image.open(image_path).convert("RGB")
+    except (FileNotFoundError, OSError) as e:
+        logger.error("Error opening image %s: %s", image_path, e)
+        return None
+
+    input_tensor = transform(image).unsqueeze(0)
+    predictions = predict(model, device, input_tensor)
+    annotated_image = annotate_keypoints(image, predictions, labels, palette)
     return annotated_image
 
 
@@ -211,6 +252,46 @@ def process_video_instance_segmentation(video_path, model, device, labels, palet
             predictions = model(input_tensor)[0]
 
         annotated_image = annotate_instance_segmentation(frame_image, predictions, labels, palette)
+        annotated_frame = np.array(annotated_image)
+        annotated_frame_bgr = cv2.cvtColor(annotated_frame, cv2.COLOR_RGB2BGR)
+        out.write(annotated_frame_bgr)
+
+    cap.release()
+    out.release()
+    logger.info("Annotated video saved to %s", output_path)
+
+
+def process_video_keypoint(video_path, model, device, labels, palette, infer_output_dir, fps=30):
+    """Process a video for keypoint detection."""
+    output_path = os.path.join(infer_output_dir, f"annotated_{os.path.basename(video_path)}")
+    os.makedirs(infer_output_dir, exist_ok=True)
+    logger.info("Processing keypoint detection video %s", video_path)
+
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        logger.error("Error opening video file %s", video_path)
+        return
+
+    frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    input_fps = cap.get(cv2.CAP_PROP_FPS)
+    fps = input_fps if fps is None else fps
+
+    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+    out = cv2.VideoWriter(output_path, fourcc, fps, (frame_width, frame_height))
+    frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    for _ in tqdm(range(frame_count), desc="Processing frames", colour="green"):
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        frame_image = Image.fromarray(frame_rgb)
+        input_tensor = transform(frame_image).unsqueeze(0).to(device)
+        with torch.no_grad():
+            predictions = model(input_tensor)[0]
+
+        annotated_image = annotate_keypoints(frame_image, predictions, labels, palette)
         annotated_frame = np.array(annotated_image)
         annotated_frame_bgr = cv2.cvtColor(annotated_frame, cv2.COLOR_RGB2BGR)
         out.write(annotated_frame_bgr)
