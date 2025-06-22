@@ -38,7 +38,7 @@ computer-vision-services/
 |   ├── infer.py             # Image and Video pre & post process for inference
 |   ├── main.py              # Main script for inference
 |   ├── utils.py             # Utility functions.
-|   ├── myenv.yml            # Python Conda env file
+|   ├── pyproject.toml       # Poetry configuration
 |   ├── data_input/          # Sample input data
 |   │   ├── images/          # Place your images here
 |   │   └── videos/          # Place your videos here
@@ -85,17 +85,14 @@ Modify the `threshold` in `config.yaml` to change the confidence score cutoff fo
 ### **Running Locally**
 If you want to run the script locally without Docker:
 1. Install Python 3.9+.
-2. Install dependencies:
+2. Install [Poetry](https://python-poetry.org/) and project dependencies:
    ```bash
-   conda env create -f myenv.yml
+   curl -sSL https://install.python-poetry.org | python3
+   poetry install
    ```
-3. Activate conda env
+3. Run the script using Poetry:
    ```bash
-   conda activate myenv
-   ```
-4. Run the script:
-   ```bash
-   python main.py
+   poetry run python main.py
    ```
 
 ---
