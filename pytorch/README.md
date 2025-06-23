@@ -2,7 +2,6 @@
 
 A streamlined service to **run and test image classification, object detection, semantic segmentation, and keypoint detection models** available in TorchVision's model zoo. This GPU-enabled service leverages PyTorch and TorchVision to deliver efficient inference for a variety of computer vision tasks on both images and videos.
 
-NOTE: This version currently supports *Object Detection*, *Semantic Segmentation*, *Instance Segmentation*, *Keypoint Detection* and *Image Classification* models.
 ---
 
 ## **Features**
@@ -26,20 +25,6 @@ cd computer-vision-services
 - **Docker** and **NVIDIA Container Toolkit**
   - Install Docker: [Docker Installation Guide](https://docs.docker.com/get-docker/)
   - Install NVIDIA Container Toolkit: [Toolkit Installation Guide](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html)
-
-### **Setup**
-
-1. Install [Poetry](https://python-poetry.org/docs/#installation).
-2. Install project dependencies:
-
-```bash
-poetry install              # base dependencies
-poetry install --with dev   # include test dependencies
-```
-
-### **Running Tests**
-
-Use the `run_tests.sh` script from the repository root. It wraps `pytest` and writes output to `test-report.md`. The script assumes dependencies were installed via Poetry.
 
 
 ### **3. Directory Structure**
@@ -109,6 +94,10 @@ If you want to run the script locally without Docker:
    poetry run python main.py
    ```
 
+### **Running Tests**
+
+Use the `run_tests.sh` script from the repository root. It wraps `pytest` and writes output to `test-report.md`. The script assumes dependencies were installed via Poetry.
+
 ---
 
 ## **Example Outputs**
@@ -124,6 +113,9 @@ If you want to run the script locally without Docker:
 
 ### **Output Image: Image Classification**
 ![Output Example - Classification](https://github.com/MeAmarP/computer-vision-services/blob/c10641371aec2ac353e7276a0369f74a8f728dfc/pytorch/sample_output/mobilenet_v3_large_classification_annotated.jpg)
+
+### **Output Video: Keypoint Detection**
+![Output Example - Keypoint Detection](https://github.com/MeAmarP/computer-vision-services/blob/544b6040034a342c41b04117d5d2f6665035bc9f/pytorch/sample_output/annotated_20250622_1627_JoyfulDanceatSunset.mp4)
 
 ## Contact
 **Author**: [MeAmarP](https://github.com/MeAmarP)
