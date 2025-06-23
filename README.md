@@ -1,2 +1,2 @@
 # computer-vision-services
-CV docker services based on Pytorch for tasks like Classification, Segmentation, Object &amp; Keypoint detection
+CV docker services based on PyTorch for tasks like Classification, Segmentation, Instance Segmentation, Object & Keypoint detection

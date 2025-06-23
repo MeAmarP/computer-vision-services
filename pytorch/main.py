@@ -7,6 +7,10 @@ import logging
 from infer import (
     process_image,
     process_video,
+    process_image_instance_segmentation,
+    process_video_instance_segmentation,
+    process_image_keypoint,
+    process_video_keypoint,
     process_image_segmentation,
     process_video_segmentation,
     process_image_classification,
@@ -46,7 +50,7 @@ def load_model_from_config(config: dict, device: torch.device):
         weights_class = getattr(models, model_weights_class_name)
         weights = getattr(weights_class, model_weights_name)
         model = model_fn(weights=weights).to(device)
-    else:  # object_detection or keypoint_detection
+    else:  # object_detection, instance_segmentation or keypoint_detection
         import torchvision.models.detection as detection
 
         model_fn = getattr(detection, model_name)
@@ -84,6 +88,14 @@ def main():
                 annotated_image = process_image_segmentation(
                     input_path, model, device, labels, palette
                 )
+            elif task == "instance_segmentation":
+                annotated_image = process_image_instance_segmentation(
+                    input_path, model, device, labels, palette
+                )
+            elif task == "keypoint_detection":
+                annotated_image = process_image_keypoint(
+                    input_path, model, device, labels, palette
+                )
             elif task == "image_classification":
                 annotated_image = process_image_classification(
                     input_path, model, device, labels
@@ -99,6 +111,14 @@ def main():
         elif filename.lower().endswith(".mp4"):
             if task == "semantic_segmentation":
                 process_video_segmentation(
+                    input_path, model, device, labels, palette, infer_output_dir
+                )
+            elif task == "instance_segmentation":
+                process_video_instance_segmentation(
+                    input_path, model, device, labels, palette, infer_output_dir
+                )
+            elif task == "keypoint_detection":
+                process_video_keypoint(
                     input_path, model, device, labels, palette, infer_output_dir
                 )
             elif task == "image_classification":

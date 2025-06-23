@@ -1,7 +1,7 @@
-input_dir: "data_input/images/"           # Directory for input images/videos
+input_dir: "data_input/videos/"           # Directory for input images/videos
 output_dir: "infer_output/"         # Directory to save annotated outputs
-task: "image_classification"            # image_classification|object_detection|semantic_segmentation|keypoint_detection
-model_name: "mobilenet_v3_large"  # Model name for object detection
-model_weights_class: "MobileNet_V3_Large_Weights"
-model_weights: "DEFAULT"
+task: "keypoint_detection"            # image_classification|object_detection|semantic_segmentation|instance_segmentation|keypoint_detection
+model_name: "keypointrcnn_resnet50_fpn"  # Keypoint detection model
+model_weights_class: "KeypointRCNN_ResNet50_FPN_Weights"
+model_weights: "COCO_V1"
 threshold: 0.4               # Confidence threshold for predictions

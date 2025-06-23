@@ -1,8 +1,7 @@
-# **[WIP] PyTorch-TorchVision Computer Vision Service**
+# **PyTorch-TorchVision Computer Vision Service**
 
 A streamlined service to **run and test image classification, object detection, semantic segmentation, and keypoint detection models** available in TorchVision's model zoo. This GPU-enabled service leverages PyTorch and TorchVision to deliver efficient inference for a variety of computer vision tasks on both images and videos.
 
-NOTE: This version currently supports *Object Detection* and *Image Classification* models.
 ---
 
 ## **Features**
@@ -38,7 +37,7 @@ computer-vision-services/
 |   ├── infer.py             # Image and Video pre & post process for inference
 |   ├── main.py              # Main script for inference
 |   ├── utils.py             # Utility functions.
-|   ├── myenv.yml            # Python Conda env file
+|   ├── pyproject.toml       # Poetry configuration
 |   ├── data_input/          # Sample input data
 |   │   ├── images/          # Place your images here
 |   │   └── videos/          # Place your videos here
@@ -85,18 +84,19 @@ Modify the `threshold` in `config.yaml` to change the confidence score cutoff fo
 ### **Running Locally**
 If you want to run the script locally without Docker:
 1. Install Python 3.9+.
-2. Install dependencies:
+2. Install [Poetry](https://python-poetry.org/) and project dependencies:
    ```bash
-   conda env create -f myenv.yml
+   curl -sSL https://install.python-poetry.org | python3
+   poetry install
    ```
-3. Activate conda env
+3. Run the script using Poetry:
    ```bash
-   conda activate myenv
+   poetry run python main.py
    ```
-4. Run the script:
-   ```bash
-   python main.py
-   ```
+
+### **Running Tests**
+
+Use the `run_tests.sh` script from the repository root. It wraps `pytest` and writes output to `test-report.md`. The script assumes dependencies were installed via Poetry.
 
 ---
 
@@ -113,6 +113,9 @@ If you want to run the script locally without Docker:
 
 ### **Output Image: Image Classification**
 ![Output Example - Classification](https://github.com/MeAmarP/computer-vision-services/blob/c10641371aec2ac353e7276a0369f74a8f728dfc/pytorch/sample_output/mobilenet_v3_large_classification_annotated.jpg)
+
+### **Output Video: Keypoint Detection**
+![Output Example - Keypoint Detection](https://github.com/MeAmarP/computer-vision-services/blob/544b6040034a342c41b04117d5d2f6665035bc9f/pytorch/sample_output/annotated_20250622_1627_JoyfulDanceatSunset.mp4)
 
 ## Contact
 **Author**: [MeAmarP](https://github.com/MeAmarP)
