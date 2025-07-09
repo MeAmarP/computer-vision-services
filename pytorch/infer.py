@@ -24,8 +24,8 @@ classification_transform = T.Compose(
     ]
 )
 
-FONT_PATH = None  # Set this if you have a font file
-FONT_SIZE = 20
+FONT_PATH = "configs/SourceCodePro-Regular.ttf"  # Set this if you have a font file
+FONT_SIZE = 18
 
 def predict(model, device, image_tensor):
     """Run model prediction on a tensor."""
@@ -381,7 +381,7 @@ def annotate_classification(image, probs, labels, topk=5):
     for i, (p, idx) in enumerate(zip(top_probs, top_ids)):
         label_idx = idx.item()
         label_name = labels[label_idx] if labels and label_idx < len(labels) else str(label_idx)
-        draw.text((10, 10 + i * FONT_SIZE), f"{label_name}: {p:.2f}", fill="white", font=font)
+        draw.text((10, 10 + i * FONT_SIZE), f"{label_name}: {p:.2f}", fill="yellow", font=font)
     return image
 
 
