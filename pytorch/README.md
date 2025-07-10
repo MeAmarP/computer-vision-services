@@ -66,7 +66,7 @@ docker build --pull --no-cache -t det-service .
 ### **6. Run the Docker Container**
 
 ```bash
-docker run --gpus all --shm-size=4g -v $(pwd)/pytorch:/app det-service
+docker run --rm --gpus all --shm-size=4g -v $(pwd)/pytorch:/app det-service
 ```
 
 ## **Customization**
@@ -116,6 +116,14 @@ Use the `run_tests.sh` script from the repository root. It wraps `pytest` and wr
 
 ### **Output Video: Keypoint Detection**
 ![Output Example - Keypoint Detection](https://github.com/MeAmarP/computer-vision-services/blob/544b6040034a342c41b04117d5d2f6665035bc9f/pytorch/sample_output/annotated_20250622_1627_JoyfulDanceatSunset.mp4)
+
+
+### Video Source
+- https://www.pexels.com/video/black-and-white-video-of-people-853889/
+- https://www.pexels.com/video/people-at-the-market-854071/
+- Video by ahmet ugur: https://www.pexels.com/video/vibrant-local-market-with-fresh-produce-display-29058561/
+- Video by Kelly    : https://www.pexels.com/video/vehicle-footage-crossing-the-road-in-time-lapse-3695999/
+- Video by Rajan kumar: https://www.pexels.com/video/traffic-in-the-highway-27594168/
 
 ## Contact
 **Author**: [MeAmarP](https://github.com/MeAmarP)
