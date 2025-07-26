@@ -6,6 +6,7 @@ import numpy as np
 from PIL import ImageDraw, ImageFont
 from tqdm import tqdm
 import logging
+import time
 
 import torchvision.transforms as T
 from torchvision.io import read_video, write_video
@@ -27,6 +28,59 @@ classification_transform = T.Compose(
 FONT_PATH = "configs/SourceCodePro-Regular.ttf"  # Set this if you have a font file
 FONT_SIZE = 18
 
+
+def _draw_text_with_bg(draw, position, text, font, text_fill="black", bg_fill="white"):
+    """Draw text with a solid background color."""
+    x, y = position
+    bbox = draw.textbbox((x, y), text, font=font)
+    w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
+    draw.rectangle([x, y, x + w, y + h], fill=bg_fill)
+    draw.text((x, y), text, fill=text_fill, font=font)
+
+
+def _load_font():
+    try:
+        return ImageFont.truetype(FONT_PATH, size=FONT_SIZE)
+    except OSError:
+        return ImageFont.load_default()
+
+
+def _draw_metadata(draw, image, font, infer_time=None, fps=None, model_name=None):
+    """Draw inference metadata on the image if provided."""
+    text_y = 10
+    if infer_time is not None:
+        _draw_text_with_bg(
+            draw,
+            (10, text_y),
+            f"Infer time: {infer_time * 1000:.1f} ms",
+            font,
+        )
+        text_y += FONT_SIZE + 5
+    if fps is not None:
+        _draw_text_with_bg(draw, (10, text_y), f"FPS: {fps:.2f}", font)
+    if model_name:
+        bbox = draw.textbbox((0, 0), model_name, font=font)
+        w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
+        _draw_text_with_bg(
+            draw,
+            ((image.width - w) / 2, image.height - h - 10),
+            model_name,
+            font,
+        )
+
+
+def _add_attribution(image):
+    """Add bottom-right attribution to a PIL image."""
+    draw = ImageDraw.Draw(image)
+    font = _load_font()
+    text = "@meamarp"
+    bbox = draw.textbbox((0, 0), text, font=font)
+    w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
+    x = image.width - w - 10
+    y = image.height - h - 10
+    draw.text((x, y), text, fill="white", font=font)
+    return image
+
 def predict(model, device, image_tensor):
     """Run model prediction on a tensor."""
     image_tensor = image_tensor.to(device)
@@ -35,10 +89,20 @@ def predict(model, device, image_tensor):
     logger.debug("Predictions: %s", predictions)
     return predictions
 
-def annotate_image(image, predictions, labels, palette):
-    """Annotate detection results on an image."""
+def annotate_image(image, predictions, labels, palette, infer_time=None, fps=None, model_name=None):
+    """Annotate detection results on an image.
+
+    Args:
+        image (PIL.Image.Image): Image to annotate.
+        predictions (dict): Model predictions.
+        labels (list): Label names.
+        palette (dict): Color palette for annotations.
+        infer_time (float, optional): Inference time for the frame.
+        fps (float, optional): Frames per second for the frame.
+        model_name (str, optional): Name of the model used.
+    """
     draw = ImageDraw.Draw(image)
-    font = ImageFont.truetype(FONT_PATH, size=FONT_SIZE) if FONT_PATH else None
+    font = _load_font()
 
     for box, label, score in zip(predictions['boxes'], predictions['labels'], predictions['scores']):
         label_idx = label.item()
@@ -52,14 +116,27 @@ def annotate_image(image, predictions, labels, palette):
         box = box.tolist()
         draw.rectangle(box, outline=palette[coco_label_name], width=2)
         draw.text((box[0], box[1]), f"{coco_label_name} ({score:.2f})", fill="white", font=font)
+    _draw_metadata(draw, image, font, infer_time, fps, model_name)
     return image
 
-def annotate_instance_segmentation(image, predictions, labels, palette, alpha=0.4):
-    """Annotate instance segmentation results on an image."""
+def annotate_instance_segmentation(
+    image,
+    predictions,
+    labels,
+    palette,
+    alpha=0.4,
+    infer_time=None,
+    fps=None,
+    model_name=None,
+):
+    """Annotate instance segmentation results on an image.
+
+    Additional parameters allow overlaying inference metadata.
+    """
     image = image.convert("RGBA")
     overlay = Image.new("RGBA", image.size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(overlay)
-    font = ImageFont.truetype(FONT_PATH, size=FONT_SIZE) if FONT_PATH else None
+    font = _load_font()
 
     for box, mask, label, score in zip(
         predictions["boxes"],
@@ -81,12 +158,25 @@ def annotate_instance_segmentation(image, predictions, labels, palette, alpha=0.
         draw.text((box[0], box[1]), f"{label_name} ({score:.2f})", fill="white", font=font)
 
     blended = Image.alpha_composite(image, overlay)
-    return blended.convert("RGB")
+    result = blended.convert("RGB")
+    draw_result = ImageDraw.Draw(result)
+    _draw_metadata(draw_result, result, font, infer_time, fps, model_name)
+    return result
 
-def annotate_keypoints(image, predictions, labels, palette):
-    """Annotate keypoint detection results on an image."""
+def annotate_keypoints(image, predictions, labels, palette, infer_time=None, fps=None, model_name=None):
+    """Annotate keypoint detection results on an image.
+
+    Args:
+        image (PIL.Image.Image): Image to annotate.
+        predictions (dict): Model predictions.
+        labels (list): Label names.
+        palette (dict): Color palette for annotations.
+        infer_time (float, optional): Inference time for the frame.
+        fps (float, optional): Frames per second for the frame.
+        model_name (str, optional): Name of the model used.
+    """
     draw = ImageDraw.Draw(image)
-    font = ImageFont.truetype(FONT_PATH, size=FONT_SIZE) if FONT_PATH else None
+    font = _load_font()
 
     for box, kpts, label, score in zip(
         predictions["boxes"],
@@ -108,9 +198,10 @@ def annotate_keypoints(image, predictions, labels, palette):
                 r = 3
                 draw.ellipse((x - r, y - r, x + r, y + r), fill=color)
 
+    _draw_metadata(draw, image, font, infer_time, fps, model_name)
     return image
 
-def process_image(image_path, model, device, labels, palette):
+def process_image(image_path, model, device, labels, palette, model_name=None):
     """Run detection on a single image file."""
     try:
         image = Image.open(image_path).convert("RGB")
@@ -119,12 +210,23 @@ def process_image(image_path, model, device, labels, palette):
         return None
 
     input_tensor = transform(image).unsqueeze(0)
+    start = time.perf_counter()
     predictions = predict(model, device, input_tensor)
-    annotated_image = annotate_image(image, predictions, labels, palette)
+    infer_time = time.perf_counter() - start
+    fps = 1.0 / infer_time if infer_time > 0 else 0
+    annotated_image = annotate_image(
+        image,
+        predictions,
+        labels,
+        palette,
+        infer_time=infer_time,
+        fps=fps,
+        model_name=model_name,
+    )
     return annotated_image
 
 
-def process_image_instance_segmentation(image_path, model, device, labels, palette):
+def process_image_instance_segmentation(image_path, model, device, labels, palette, model_name=None):
     """Run instance segmentation on a single image."""
     try:
         image = Image.open(image_path).convert("RGB")
@@ -133,12 +235,23 @@ def process_image_instance_segmentation(image_path, model, device, labels, palet
         return None
 
     input_tensor = transform(image).unsqueeze(0)
+    start = time.perf_counter()
     predictions = predict(model, device, input_tensor)
-    annotated_image = annotate_instance_segmentation(image, predictions, labels, palette)
+    infer_time = time.perf_counter() - start
+    fps = 1.0 / infer_time if infer_time > 0 else 0
+    annotated_image = annotate_instance_segmentation(
+        image,
+        predictions,
+        labels,
+        palette,
+        infer_time=infer_time,
+        fps=fps,
+        model_name=model_name,
+    )
     return annotated_image
 
 
-def process_image_keypoint(image_path, model, device, labels, palette):
+def process_image_keypoint(image_path, model, device, labels, palette, model_name=None):
     """Run keypoint detection on a single image."""
     try:
         image = Image.open(image_path).convert("RGB")
@@ -147,13 +260,24 @@ def process_image_keypoint(image_path, model, device, labels, palette):
         return None
 
     input_tensor = transform(image).unsqueeze(0)
+    start = time.perf_counter()
     predictions = predict(model, device, input_tensor)
-    annotated_image = annotate_keypoints(image, predictions, labels, palette)
+    infer_time = time.perf_counter() - start
+    fps = 1.0 / infer_time if infer_time > 0 else 0
+    annotated_image = annotate_keypoints(
+        image,
+        predictions,
+        labels,
+        palette,
+        infer_time=infer_time,
+        fps=fps,
+        model_name=model_name,
+    )
     return annotated_image
 
 
 
-def process_video(video_path, model, device, labels, palette, infer_output_dir, fps=30):
+def process_video(video_path, model, device, labels, palette, infer_output_dir, fps=30, model_name=None):
     """
     Processes a video for object detection and creates an annotated video using OpenCV.
 
@@ -203,11 +327,24 @@ def process_video(video_path, model, device, labels, palette, infer_output_dir, 
 
         # Convert the image to a tensor and perform inference
         input_tensor = transform(frame_image).unsqueeze(0).to(device)
+        start = time.perf_counter()
         with torch.no_grad():
             predictions = model(input_tensor)[0]
+        infer_time = time.perf_counter() - start
+        frame_fps = 1.0 / infer_time if infer_time > 0 else 0
 
         # Annotate the frame
-        annotated_image = annotate_image(frame_image, predictions, labels, palette)
+        annotated_image = annotate_image(
+            frame_image,
+            predictions,
+            labels,
+            palette,
+            infer_time=infer_time,
+            fps=frame_fps,
+            model_name=model_name,
+        )
+
+        _add_attribution(annotated_image)
 
         # Convert annotated image back to NumPy array
         annotated_frame = np.array(annotated_image)
@@ -222,7 +359,7 @@ def process_video(video_path, model, device, labels, palette, infer_output_dir, 
     logger.info("Annotated video saved to %s", output_path)
 
 
-def process_video_instance_segmentation(video_path, model, device, labels, palette, infer_output_dir, fps=30):
+def process_video_instance_segmentation(video_path, model, device, labels, palette, infer_output_dir, fps=30, model_name=None):
     """Process a video for instance segmentation."""
     output_path = os.path.join(infer_output_dir, f"annotated_{os.path.basename(video_path)}")
     os.makedirs(infer_output_dir, exist_ok=True)
@@ -248,10 +385,22 @@ def process_video_instance_segmentation(video_path, model, device, labels, palet
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         frame_image = Image.fromarray(frame_rgb)
         input_tensor = transform(frame_image).unsqueeze(0).to(device)
+        start = time.perf_counter()
         with torch.no_grad():
             predictions = model(input_tensor)[0]
+        infer_time = time.perf_counter() - start
+        frame_fps = 1.0 / infer_time if infer_time > 0 else 0
 
-        annotated_image = annotate_instance_segmentation(frame_image, predictions, labels, palette)
+        annotated_image = annotate_instance_segmentation(
+            frame_image,
+            predictions,
+            labels,
+            palette,
+            infer_time=infer_time,
+            fps=frame_fps,
+            model_name=model_name,
+        )
+        _add_attribution(annotated_image)
         annotated_frame = np.array(annotated_image)
         annotated_frame_bgr = cv2.cvtColor(annotated_frame, cv2.COLOR_RGB2BGR)
         out.write(annotated_frame_bgr)
@@ -261,7 +410,7 @@ def process_video_instance_segmentation(video_path, model, device, labels, palet
     logger.info("Annotated video saved to %s", output_path)
 
 
-def process_video_keypoint(video_path, model, device, labels, palette, infer_output_dir, fps=30):
+def process_video_keypoint(video_path, model, device, labels, palette, infer_output_dir, fps=30, model_name=None):
     """Process a video for keypoint detection."""
     output_path = os.path.join(infer_output_dir, f"annotated_{os.path.basename(video_path)}")
     os.makedirs(infer_output_dir, exist_ok=True)
@@ -288,10 +437,22 @@ def process_video_keypoint(video_path, model, device, labels, palette, infer_out
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         frame_image = Image.fromarray(frame_rgb)
         input_tensor = transform(frame_image).unsqueeze(0).to(device)
+        start = time.perf_counter()
         with torch.no_grad():
             predictions = model(input_tensor)[0]
+        infer_time = time.perf_counter() - start
+        frame_fps = 1.0 / infer_time if infer_time > 0 else 0
 
-        annotated_image = annotate_keypoints(frame_image, predictions, labels, palette)
+        annotated_image = annotate_keypoints(
+            frame_image,
+            predictions,
+            labels,
+            palette,
+            infer_time=infer_time,
+            fps=frame_fps,
+            model_name=model_name,
+        )
+        _add_attribution(annotated_image)
         annotated_frame = np.array(annotated_image)
         annotated_frame_bgr = cv2.cvtColor(annotated_frame, cv2.COLOR_RGB2BGR)
         out.write(annotated_frame_bgr)
@@ -310,7 +471,16 @@ def predict_segmentation(model, device, image_tensor):
     return output[0]
 
 
-def annotate_segmentation(image, output, labels, palette, alpha=0.6):
+def annotate_segmentation(
+    image,
+    output,
+    labels,
+    palette,
+    alpha=0.6,
+    infer_time=None,
+    fps=None,
+    model_name=None,
+):
     class_map = output.argmax(0).byte().cpu().numpy()
     color_mask = np.zeros((class_map.shape[0], class_map.shape[1], 3), dtype=np.uint8)
     for idx, label in enumerate(labels):
@@ -322,10 +492,13 @@ def annotate_segmentation(image, output, labels, palette, alpha=0.6):
     blended = Image.blend(image, mask_image, alpha)
     blended = blended.convert("RGB")  # Convert back to RGB for consistency
     logger.debug("Annotated segmentation with alpha %s", alpha)
+    draw = ImageDraw.Draw(blended)
+    font = _load_font()
+    _draw_metadata(draw, blended, font, infer_time, fps, model_name)
     return blended
 
 
-def process_image_segmentation(image_path, model, device, labels, palette):
+def process_image_segmentation(image_path, model, device, labels, palette, model_name=None):
     try:
         image = Image.open(image_path).convert("RGB")
     except (FileNotFoundError, OSError) as e:
@@ -333,11 +506,22 @@ def process_image_segmentation(image_path, model, device, labels, palette):
         return None
 
     input_tensor = transform(image).unsqueeze(0)
+    start = time.perf_counter()
     output = predict_segmentation(model, device, input_tensor)
-    return annotate_segmentation(image, output, labels, palette)
+    infer_time = time.perf_counter() - start
+    fps = 1.0 / infer_time if infer_time > 0 else 0
+    return annotate_segmentation(
+        image,
+        output,
+        labels,
+        palette,
+        infer_time=infer_time,
+        fps=fps,
+        model_name=model_name,
+    )
 
 
-def process_video_segmentation(video_path, model, device, labels, palette, infer_output_dir, fps=30):
+def process_video_segmentation(video_path, model, device, labels, palette, infer_output_dir, fps=30, model_name=None):
     output_path = os.path.join(infer_output_dir, f"annotated_{os.path.basename(video_path)}")
     os.makedirs(infer_output_dir, exist_ok=True)
     logger.info("Processing segmentation video %s", video_path)
@@ -362,8 +546,20 @@ def process_video_segmentation(video_path, model, device, labels, palette, infer
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         frame_image = Image.fromarray(frame_rgb)
         input_tensor = transform(frame_image).unsqueeze(0)
+        start = time.perf_counter()
         output = predict_segmentation(model, device, input_tensor)
-        annotated_image = annotate_segmentation(frame_image, output, labels, palette)
+        infer_time = time.perf_counter() - start
+        frame_fps = 1.0 / infer_time if infer_time > 0 else 0
+        annotated_image = annotate_segmentation(
+            frame_image,
+            output,
+            labels,
+            palette,
+            infer_time=infer_time,
+            fps=frame_fps,
+            model_name=model_name,
+        )
+        _add_attribution(annotated_image)
         annotated_frame = np.array(annotated_image.convert("RGB"))
         annotated_frame_bgr = cv2.cvtColor(annotated_frame, cv2.COLOR_RGB2BGR)
         out.write(annotated_frame_bgr)
@@ -373,19 +569,20 @@ def process_video_segmentation(video_path, model, device, labels, palette, infer
     logger.info("Annotated video saved to %s", output_path)
 
 
-def annotate_classification(image, probs, labels, topk=5):
-    """Annotate an image with classification results."""
+def annotate_classification(image, probs, labels, topk=5, infer_time=None, fps=None, model_name=None):
+    """Annotate an image with classification results and metadata."""
     draw = ImageDraw.Draw(image)
-    font = ImageFont.truetype(FONT_PATH, size=FONT_SIZE) if FONT_PATH else None
+    font = _load_font()
     top_probs, top_ids = torch.topk(probs, k=min(topk, probs.shape[0]))
     for i, (p, idx) in enumerate(zip(top_probs, top_ids)):
         label_idx = idx.item()
         label_name = labels[label_idx] if labels and label_idx < len(labels) else str(label_idx)
         draw.text((10, 10 + i * FONT_SIZE), f"{label_name}: {p:.2f}", fill="yellow", font=font)
+    _draw_metadata(draw, image, font, infer_time, fps, model_name)
     return image
 
 
-def process_image_classification(image_path, model, device, labels):
+def process_image_classification(image_path, model, device, labels, model_name=None):
     """Run image classification on a single image."""
     try:
         image = Image.open(image_path).convert("RGB")
@@ -394,15 +591,26 @@ def process_image_classification(image_path, model, device, labels):
         return None
 
     input_tensor = classification_transform(image).unsqueeze(0).to(device)
+    start = time.perf_counter()
     with torch.no_grad():
         outputs = model(input_tensor)
         probs = torch.nn.functional.softmax(outputs[0], dim=0)
+    infer_time = time.perf_counter() - start
+    fps = 1.0 / infer_time if infer_time > 0 else 0
 
-    annotated_image = annotate_classification(image, probs, labels, topk=1)
+    annotated_image = annotate_classification(
+        image,
+        probs,
+        labels,
+        topk=1,
+        infer_time=infer_time,
+        fps=fps,
+        model_name=model_name,
+    )
     return annotated_image
 
 
-def process_video_classification(video_path, model, device, labels, infer_output_dir, fps=30):
+def process_video_classification(video_path, model, device, labels, infer_output_dir, fps=30, model_name=None):
     """Run classification on each frame of a video."""
     output_path = os.path.join(infer_output_dir, f"annotated_{os.path.basename(video_path)}")
     os.makedirs(infer_output_dir, exist_ok=True)
@@ -428,11 +636,23 @@ def process_video_classification(video_path, model, device, labels, infer_output
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         frame_image = Image.fromarray(frame_rgb)
         input_tensor = classification_transform(frame_image).unsqueeze(0).to(device)
+        start = time.perf_counter()
         with torch.no_grad():
             outputs = model(input_tensor)
             probs = torch.nn.functional.softmax(outputs[0], dim=0)
+        infer_time = time.perf_counter() - start
+        frame_fps = 1.0 / infer_time if infer_time > 0 else 0
 
-        annotated_image = annotate_classification(frame_image, probs, labels, topk=1)
+        annotated_image = annotate_classification(
+            frame_image,
+            probs,
+            labels,
+            topk=1,
+            infer_time=infer_time,
+            fps=frame_fps,
+            model_name=model_name,
+        )
+        _add_attribution(annotated_image)
         annotated_frame = np.array(annotated_image.convert("RGB"))
         annotated_frame_bgr = cv2.cvtColor(annotated_frame, cv2.COLOR_RGB2BGR)
         out.write(annotated_frame_bgr)

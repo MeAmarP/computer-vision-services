@@ -86,23 +86,23 @@ def main():
         if filename.lower().endswith((".jpg", ".jpeg", ".png")):
             if task == "semantic_segmentation":
                 annotated_image = process_image_segmentation(
-                    input_path, model, device, labels, palette
+                    input_path, model, device, labels, palette, model_name
                 )
             elif task == "instance_segmentation":
                 annotated_image = process_image_instance_segmentation(
-                    input_path, model, device, labels, palette
+                    input_path, model, device, labels, palette, model_name
                 )
             elif task == "keypoint_detection":
                 annotated_image = process_image_keypoint(
-                    input_path, model, device, labels, palette
+                    input_path, model, device, labels, palette, model_name
                 )
             elif task == "image_classification":
                 annotated_image = process_image_classification(
-                    input_path, model, device, labels
+                    input_path, model, device, labels, model_name
                 )
             else:
                 annotated_image = process_image(
-                    input_path, model, device, labels, palette
+                    input_path, model, device, labels, palette, model_name
                 )
             if annotated_image:
                 annotated_image.save(
@@ -111,23 +111,52 @@ def main():
         elif filename.lower().endswith(".mp4"):
             if task == "semantic_segmentation":
                 process_video_segmentation(
-                    input_path, model, device, labels, palette, infer_output_dir
+                    input_path,
+                    model,
+                    device,
+                    labels,
+                    palette,
+                    infer_output_dir,
+                    model_name=model_name,
                 )
             elif task == "instance_segmentation":
                 process_video_instance_segmentation(
-                    input_path, model, device, labels, palette, infer_output_dir
+                    input_path,
+                    model,
+                    device,
+                    labels,
+                    palette,
+                    infer_output_dir,
+                    model_name=model_name,
                 )
             elif task == "keypoint_detection":
                 process_video_keypoint(
-                    input_path, model, device, labels, palette, infer_output_dir
+                    input_path,
+                    model,
+                    device,
+                    labels,
+                    palette,
+                    infer_output_dir,
+                    model_name=model_name,
                 )
             elif task == "image_classification":
                 process_video_classification(
-                    input_path, model, device, labels, infer_output_dir
+                    input_path,
+                    model,
+                    device,
+                    labels,
+                    infer_output_dir,
+                    model_name=model_name,
                 )
             else:
                 process_video(
-                    input_path, model, device, labels, palette, infer_output_dir
+                    input_path,
+                    model,
+                    device,
+                    labels,
+                    palette,
+                    infer_output_dir,
+                    model_name=model_name,
                 )
     logger.info("Processing completed. Output saved to %s", infer_output_dir)
 
