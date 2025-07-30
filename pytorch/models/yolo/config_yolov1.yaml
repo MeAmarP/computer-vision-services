@@ -1,0 +1,84 @@
+# YOLOv1 Consolidated Configuration
+
+model:
+  name: "yolov1"
+  split_size: 7                # SxS grid size
+  num_boxes: 2                 # Number of bounding boxes per cell
+  num_classes: 20              # Number of classes (20 for PASCAL VOC, 80 for COCO)
+  input_size: [448, 448]       # Input image size (HxW)
+  backbone: "resnet50"         # Backbone network (optional)
+  confidence_threshold: 0.5    # Detection confidence threshold
+  nms_threshold: 0.4           # Non-maximum suppression threshold
+  weights_path: "models/yolo/weights/yolov1.weights"  # Path to pretrained weights (if any)
+
+training:
+  batch_size: 64
+  num_epochs: 135
+  learning_rate: 0.001
+  weight_decay: 0.0005
+  momentum: 0.9
+  lambda_coord: 5.0            # Coordinate loss weight
+  lambda_noobj: 0.5            # No-object loss weight
+  early_stopping:
+    patience: 7                # Early stopping patience
+    min_delta: 0.0001          # Minimum improvement to reset patience
+  lr_scheduler:
+    type: "ReduceLROnPlateau"
+    patience: 5
+    factor: 0.1
+    min_lr: 1e-6
+  save_freq: 10                # Save checkpoint every N epochs
+  keep_last_n: 3               # Number of latest checkpoints to keep
+
+# Data parameters
+# Update these paths for your dataset
+# For COCO, set num_classes: 80 and update class_names accordingly
+# For VOC, set num_classes: 20 and use VOC class names
+
+data:
+  root_dir: "data_input/images"           # Root directory for images
+  train_ann_file: "labels/train.json"     # Path to training annotations
+  val_ann_file: "labels/val.json"         # Path to validation annotations
+  class_names: [
+    "aeroplane", "bicycle", "bird", "boat", "bottle",
+    "bus", "car", "cat", "chair", "cow",
+    "diningtable", "dog", "horse", "motorbike", "person",
+    "pottedplant", "sheep", "sofa", "train", "tvmonitor"
+  ]
+  input_size: 448
+  batch_size: 64
+  num_workers: 4
+
+inference:
+  conf_threshold: 0.5
+  nms_threshold: 0.4
+  max_detections: 100
+
+visualization:
+  viz_interval: 50
+  save_dir: "visualizations"
+  num_samples: 4
+
+hardware:
+  multi_gpu: false
+  mixed_precision: true
+  cuda_device: 0
+
+logging:
+  log_interval: 10
+  tensorboard: true
+  log_images: true
+  log_dir: "runs"
+
+weights:
+  pretrained: null
+  save_dir: "weights"
+
+paths:
+  data_dir: "data_input"
+  output_dir: "infer_output"
+  checkpoint_dir: "checkpoints"
+
+debug:
+  enabled: false
+  subset_size: 1000
