@@ -1,6 +1,73 @@
 import torch
 import numpy as np
 from typing import List, Tuple
+import struct
+from pathlib import Path
+
+def load_darknet_weights(model, weights_path: str) -> None:
+    """
+    Load original darknet weights file
+    
+    Args:
+        model: YOLOv1 PyTorch model
+        weights_path (str): Path to darknet .weights file
+    """
+    # Read binary file
+    with open(weights_path, 'rb') as f:
+        # First 4 values are header info
+        header = np.fromfile(f, dtype=np.int32, count=4)
+        weights = np.fromfile(f, dtype=np.float32)
+    
+    ptr = 0
+    for m in model.features.modules():
+        if isinstance(m, torch.nn.Conv2d):
+            conv = m
+            num_w = conv.weight.numel()
+            
+            # Load weights and bias
+            conv_w = torch.from_numpy(weights[ptr:ptr + num_w]).view_as(conv.weight)
+            ptr += num_w
+            
+            if conv.bias is not None:
+                num_b = conv.bias.numel()
+                conv_b = torch.from_numpy(weights[ptr:ptr + num_b]).view_as(conv.bias)
+                ptr += num_b
+                
+                # Load to model
+                conv.weight.data.copy_(conv_w)
+                conv.bias.data.copy_(conv_b)
+    
+    # Load detection head weights
+    for m in model.head.modules():
+        if isinstance(m, torch.nn.Conv2d):
+            conv = m
+            num_w = conv.weight.numel()
+            
+            conv_w = torch.from_numpy(weights[ptr:ptr + num_w]).view_as(conv.weight)
+            ptr += num_w
+            
+            if conv.bias is not None:
+                num_b = conv.bias.numel()
+                conv_b = torch.from_numpy(weights[ptr:ptr + num_b]).view_as(conv.bias)
+                ptr += num_b
+                
+                conv.weight.data.copy_(conv_w)
+                conv.bias.data.copy_(conv_b)
+        
+        elif isinstance(m, torch.nn.Linear):
+            num_w = m.weight.numel()
+            num_b = m.bias.numel()
+            
+            # Load weights and bias
+            lin_w = torch.from_numpy(weights[ptr:ptr + num_w]).view_as(m.weight)
+            ptr += num_w
+            lin_b = torch.from_numpy(weights[ptr:ptr + num_b]).view_as(m.bias)
+            ptr += num_b
+            
+            m.weight.data.copy_(lin_w)
+            m.bias.data.copy_(lin_b)
+    
+    print(f'Loaded YOLOv1 weights: {ptr}/{len(weights)} values loaded')
 
 def convert_cell_boxes_to_boxes(predictions: torch.Tensor, S: int = 7) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """
