@@ -1,4 +1,5 @@
 import os
+import sys
 from PIL import Image
 import cv2
 import torch
@@ -10,6 +11,9 @@ import time
 
 import torchvision.transforms as T
 from torchvision.io import read_video, write_video
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from models.yolo.yolov1 import YOLOv1
+from models.yolo.utils import load_darknet_weights, convert_cell_boxes_to_boxes, non_max_suppression
 
 logger = logging.getLogger(__name__)
 
