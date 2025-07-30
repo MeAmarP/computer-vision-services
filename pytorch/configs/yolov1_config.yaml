@@ -1,0 +1,30 @@
+# YOLOv1 Configuration
+model:
+  name: "yolov1"
+  num_classes: 20  # PASCAL VOC classes
+  num_boxes: 2     # Boxes per cell
+  grid_size: [7, 7]  # S x S grid
+  input_size: [448, 448]  # Input image size
+  confidence_threshold: 0.5
+  nms_threshold: 0.4
+  
+training:
+  batch_size: 64
+  learning_rate: 0.001
+  momentum: 0.9
+  weight_decay: 0.0005
+  epochs: 135
+  
+  # Loss weights
+  lambda_coord: 5.0  # Coordinate loss weight
+  lambda_noobj: 0.5  # No-object loss weight
+  
+data:
+  train_path: "path/to/train/data"
+  val_path: "path/to/val/data"
+  class_names: [
+    "aeroplane", "bicycle", "bird", "boat", "bottle",
+    "bus", "car", "cat", "chair", "cow",
+    "diningtable", "dog", "horse", "motorbike", "person",
+    "pottedplant", "sheep", "sofa", "train", "tvmonitor"
+  ]
