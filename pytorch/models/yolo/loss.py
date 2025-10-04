@@ -1,8 +1,13 @@
 import torch
 import torch.nn as nn
-from utils import intersection_over_union
+import torch.nn.functional as F
 
-class YOLOv1Loss(nn.Module):
+try:  # Support both package and script execution contexts
+    from .utils import intersection_over_union
+except ImportError:  # pragma: no cover
+    from utils import intersection_over_union
+
+class YOLOLoss(nn.Module):
     """
     YOLOv1 Loss Function implementation as described in the original paper
     
@@ -14,12 +19,13 @@ class YOLOv1Loss(nn.Module):
         lambda_noobj (float): Weight for no-object predictions
     """
     def __init__(self, S=7, B=2, C=20, lambda_coord=5, lambda_noobj=0.5):
-        super(YOLOv1Loss, self).__init__()
+        super().__init__()
         self.S = S
         self.B = B
         self.C = C
         self.lambda_coord = lambda_coord
         self.lambda_noobj = lambda_noobj
+        self.mse = nn.MSELoss(reduction='sum')
         
     def forward(self, predictions: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
         """
@@ -32,96 +38,69 @@ class YOLOv1Loss(nn.Module):
         Returns:
             torch.Tensor: Computed loss
         """
-        # Reshape predictions to match target shape
         predictions = predictions.reshape(-1, self.S, self.S, self.C + self.B * 5)
-        
-        # Get IoU for both predicted boxes with target
-        iou_b1 = intersection_over_union(
-            predictions[..., 21:25],
-            targets[..., 21:25]
-        )
-        iou_b2 = intersection_over_union(
-            predictions[..., 26:30],
-            targets[..., 21:25]
-        )
-        ious = torch.cat([iou_b1.unsqueeze(0), iou_b2.unsqueeze(0)], dim=0)
-        
-        # Get best box and corresponding IoU
-        iou_maxes, best_box = torch.max(ious, dim=0)
-        exists_box = targets[..., 20].unsqueeze(3)  # Identity of object i in cell j
-        
-        # ======================== #
-        #   FOR BOX COORDINATES   #
-        # ======================== #
-        
-        # Set boxes with no object in them to 0
-        box_predictions = exists_box * (
-            (
-                best_box * predictions[..., 26:30]
-                + (1 - best_box) * predictions[..., 21:25]
-            )
-        )
-        
-        box_targets = exists_box * targets[..., 21:25]
-        
-        # Take sqrt of width, height
+        targets = targets.reshape_as(predictions)
+
+        pred_classes = predictions[..., :self.C]
+        target_classes = targets[..., :self.C]
+
+        pred_boxes = predictions[..., self.C:].view(-1, self.S, self.S, self.B, 5)
+        target_boxes = targets[..., self.C:].view(-1, self.S, self.S, self.B, 5)
+
+        target_box = target_boxes[..., 0, :]  # Dataset stores GT in first box slot
+        exists_box = target_box[..., 0:1]
+
+        pred_box_xywh = pred_boxes[..., 1:5]
+        target_box_xywh = target_box[..., 1:5].unsqueeze(3)
+
+        iou_scores = intersection_over_union(pred_box_xywh, target_box_xywh)
+        best_box = iou_scores.argmax(dim=3)
+        best_box_one_hot = F.one_hot(best_box, self.B).unsqueeze(-1).float()
+        best_pred_boxes = (pred_boxes * best_box_one_hot).sum(dim=3)
+
+        box_predictions = best_pred_boxes[..., 1:5]
+        box_targets = target_box[..., 1:5]
+
         box_predictions[..., 2:4] = torch.sign(box_predictions[..., 2:4]) * torch.sqrt(
             torch.abs(box_predictions[..., 2:4] + 1e-6)
         )
         box_targets[..., 2:4] = torch.sqrt(box_targets[..., 2:4])
-        
-        # (N, S, S, 4) -> (N*S*S, 4)
+
+        exists_box_box = exists_box.expand_as(box_predictions)
         box_loss = self.mse(
-            torch.flatten(box_predictions, end_dim=-2),
-            torch.flatten(box_targets, end_dim=-2)
+            torch.flatten(exists_box_box * box_predictions, end_dim=-2),
+            torch.flatten(exists_box_box * box_targets, end_dim=-2),
         )
-        
-        # ==================== #
-        #   FOR OBJECT LOSS   #
-        # ==================== #
-        
-        # pred_box is the confidence score for the bbox with highest IoU
-        pred_box = (
-            best_box * predictions[..., 25:26] + (1 - best_box) * predictions[..., 20:21]
-        )
-        
+
+        pred_box_conf = best_pred_boxes[..., 0:1]
+        target_box_conf = exists_box  # already 1 for cells with objects
         object_loss = self.mse(
-            torch.flatten(exists_box * pred_box),
-            torch.flatten(exists_box * targets[..., 20:21])
+            torch.flatten(exists_box * pred_box_conf),
+            torch.flatten(exists_box * target_box_conf),
         )
-        
-        # ======================= #
-        #   FOR NO OBJECT LOSS   #
-        # ======================= #
-        
+
+        no_object_mask = 1 - target_boxes[..., 0:1]
         no_object_loss = self.mse(
-            torch.flatten((1 - exists_box) * predictions[..., 20:21], start_dim=1),
-            torch.flatten((1 - exists_box) * targets[..., 20:21], start_dim=1)
+            torch.flatten(no_object_mask * pred_boxes[..., 0:1]),
+            torch.flatten(torch.zeros_like(pred_boxes[..., 0:1])),
         )
-        
-        no_object_loss += self.mse(
-            torch.flatten((1 - exists_box) * predictions[..., 25:26], start_dim=1),
-            torch.flatten((1 - exists_box) * targets[..., 20:21], start_dim=1)
-        )
-        
-        # ================== #
-        #   FOR CLASS LOSS   #
-        # ================== #
-        
+
+        exists_box_class = exists_box.expand_as(pred_classes)
         class_loss = self.mse(
-            torch.flatten(exists_box * predictions[..., :20], end_dim=-2),
-            torch.flatten(exists_box * targets[..., :20], end_dim=-2)
+            torch.flatten(exists_box_class * pred_classes, end_dim=-2),
+            torch.flatten(exists_box_class * target_classes, end_dim=-2),
         )
-        
-        # ================== #
-        #   TOTAL LOSS      #
-        # ================== #
-        
+
         loss = (
-            self.lambda_coord * box_loss  # First two rows of paper
-            + object_loss  # Third row of paper
-            + self.lambda_noobj * no_object_loss  # Fourth row of paper
-            + class_loss  # Fifth row of paper
+            self.lambda_coord * box_loss
+            + object_loss
+            + self.lambda_noobj * no_object_loss
+            + class_loss
         )
-        
+
         return loss
+
+
+# Backwards compatibility alias
+class YOLOv1Loss(YOLOLoss):
+    pass
