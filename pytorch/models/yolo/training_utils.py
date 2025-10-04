@@ -4,6 +4,7 @@ from collections import defaultdict
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from tqdm import tqdm
+import logging
 
 def box_iou(box1, box2):
     """Calculate IoU between box1 and box2."""
@@ -31,6 +32,30 @@ def box_iou(box1, box2):
     iou = intersection_area / float(box1_area + box2_area - intersection_area)
     return iou
 
+
+def _to_float(value):
+    if torch.is_tensor(value):
+        return float(value.item())
+    return float(value)
+
+
+def _cell_to_corners(grid_y, grid_x, box, grid_size):
+    """Convert YOLO (x, y, w, h) relative to cell into absolute corner coords."""
+    S = grid_size
+    x_offset = _to_float(box[0])
+    y_offset = _to_float(box[1])
+    w = max(_to_float(box[2]), 1e-6)
+    h = max(_to_float(box[3]), 1e-6)
+
+    x_center = (grid_x + x_offset) / S
+    y_center = (grid_y + y_offset) / S
+
+    x1 = x_center - w / 2
+    y1 = y_center - h / 2
+    x2 = x_center + w / 2
+    y2 = y_center + h / 2
+    return (x1, y1, x2, y2)
+
 def calculate_map(model, val_loader, device, config):
     """Calculate mAP on validation set."""
     model.eval()
@@ -49,90 +74,113 @@ def calculate_map(model, val_loader, device, config):
     predictions = torch.cat(predictions, dim=0)
     targets = torch.cat(targets, dim=0)
     
-    return calculate_map_from_tensors(
-        predictions, 
-        targets,
-        config['model']['split_size'],
-        config['model']['num_boxes'],
-        config['model']['num_classes']
-    )
+    try:
+        return calculate_map_from_tensors(
+            predictions,
+            targets,
+            config['model']['split_size'],
+            config['model']['num_boxes'],
+            config['model']['num_classes'],
+        )
+    except Exception as exc:
+        logging.getLogger(__name__).warning("Failed to compute mAP: %s", exc)
+        return 0.0
 
 def calculate_map_from_tensors(predictions, targets, S=7, B=2, C=80, iou_threshold=0.5):
     """Calculate mAP from prediction and target tensors."""
-    class_predictions = predictions[..., :C]
-    box_predictions = predictions[..., C:].view(-1, S, S, B, 5)
-    
-    class_targets = targets[..., :C]
-    box_targets = targets[..., C:].view(-1, S, S, B, 5)
-    
-    # Calculate AP for each class
-    APs = []
-    for c in range(C):
-        # Get predictions and targets for this class
-        class_pred = class_predictions[..., c]
-        class_target = class_targets[..., c]
-        
-        # Calculate precision and recall
-        predictions = []
-        ground_truths = []
-        
-        for i in range(S):
-            for j in range(S):
-                for b in range(B):
-                    confidence = box_predictions[..., i, j, b, 0]
-                    if confidence > 0:
-                        pred_box = box_predictions[..., i, j, b, 1:]
-                        predictions.append((confidence, pred_box))
-                    
-                    target_confidence = box_targets[..., i, j, b, 0]
-                    if target_confidence > 0:
-                        target_box = box_targets[..., i, j, b, 1:]
-                        ground_truths.append(target_box)
-        
+    if predictions.numel() == 0:
+        return 0.0
+
+    predictions = predictions.view(-1, S, S, C + B * 5)
+    targets = targets.view(-1, S, S, C + B * 5)
+    batch_size = predictions.shape[0]
+
+    ap_values = []
+
+    for class_idx in range(C):
+        detections = []
+        ground_truths = {}
+
+        for img_idx in range(batch_size):
+            target_cell = targets[img_idx]
+            pred_cell = predictions[img_idx]
+
+            for y in range(S):
+                for x in range(S):
+                    class_target = target_cell[y, x, class_idx]
+                    if class_target > 0:
+                        gt_box = target_cell[y, x, C + 1:C + 5]
+                        ground_truths.setdefault(img_idx, []).append(
+                            {'box': _cell_to_corners(y, x, gt_box, S), 'used': False}
+                        )
+
+                    for box_idx in range(B):
+                        conf = pred_cell[y, x, C + box_idx * 5]
+                        conf_value = float(conf.item()) if torch.is_tensor(conf) else float(conf)
+                        if conf_value <= 0:
+                            continue
+
+                        class_prob = pred_cell[y, x, class_idx]
+                        class_prob_value = float(class_prob.item()) if torch.is_tensor(class_prob) else float(class_prob)
+                        score = conf_value * class_prob_value
+                        if score <= 0:
+                            continue
+
+                        box_slice = pred_cell[y, x, C + box_idx * 5 + 1:C + box_idx * 5 + 5]
+                        detections.append({
+                            'img_idx': img_idx,
+                            'score': score,
+                            'box': _cell_to_corners(y, x, box_slice, S),
+                        })
+
         if not ground_truths:
             continue
-            
-        # Sort predictions by confidence
-        predictions.sort(key=lambda x: x[0], reverse=True)
-        
-        TP = torch.zeros(len(predictions))
-        FP = torch.zeros(len(predictions))
-        total_true_boxes = len(ground_truths)
-        
-        if total_true_boxes == 0:
+
+        detections.sort(key=lambda d: d['score'], reverse=True)
+        if not detections:
             continue
-            
-        for detection_idx, (confidence, pred_box) in enumerate(predictions):
-            best_iou = 0
-            
-            for idx, target_box in enumerate(ground_truths):
-                iou = box_iou(pred_box, target_box)
-                
+
+        tp = torch.zeros(len(detections))
+        fp = torch.zeros(len(detections))
+        total_true_boxes = sum(len(v) for v in ground_truths.values())
+
+        for det_idx, det in enumerate(detections):
+            img_ground_truths = ground_truths.get(det['img_idx'], [])
+            if not img_ground_truths:
+                fp[det_idx] = 1
+                continue
+
+            best_iou = 0.0
+            best_gt_idx = -1
+
+            for idx_gt, gt in enumerate(img_ground_truths):
+                iou = box_iou(det['box'], gt['box'])
                 if iou > best_iou:
                     best_iou = iou
-                    best_gt_idx = idx
-            
-            if best_iou > iou_threshold:
-                if confidence > 0.5:
-                    TP[detection_idx] = 1
-                    ground_truths.pop(best_gt_idx)
+                    best_gt_idx = idx_gt
+
+            if best_iou >= iou_threshold and best_gt_idx >= 0 and not img_ground_truths[best_gt_idx]['used']:
+                tp[det_idx] = 1
+                img_ground_truths[best_gt_idx]['used'] = True
             else:
-                FP[detection_idx] = 1
-                
-        TP_cumsum = torch.cumsum(TP, dim=0)
-        FP_cumsum = torch.cumsum(FP, dim=0)
-        
-        recalls = TP_cumsum / (total_true_boxes + 1e-6)
-        precisions = TP_cumsum / (TP_cumsum + FP_cumsum + 1e-6)
-        
-        # Calculate AP using interpolation
-        precisions = torch.cat((torch.tensor([1]), precisions))
-        recalls = torch.cat((torch.tensor([0]), recalls))
-        
-        AP = torch.trapz(precisions, recalls)
-        APs.append(AP)
-    
-    return sum(APs) / len(APs) if APs else 0.0
+                fp[det_idx] = 1
+
+        tp_cumsum = torch.cumsum(tp, dim=0)
+        fp_cumsum = torch.cumsum(fp, dim=0)
+
+        recalls = tp_cumsum / (total_true_boxes + 1e-6)
+        precisions = tp_cumsum / (tp_cumsum + fp_cumsum + 1e-6)
+
+        precisions = torch.cat((torch.tensor([1.0]), precisions))
+        recalls = torch.cat((torch.tensor([0.0]), recalls))
+
+        ap = torch.trapz(precisions, recalls)
+        ap_values.append(ap)
+
+    if not ap_values:
+        return 0.0
+
+    return float(torch.stack(ap_values).mean().item())
 
 class EarlyStopping:
     """Early stopping handler."""
