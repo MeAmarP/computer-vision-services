@@ -6,7 +6,7 @@ This document provides guidance on training the YOLOv1 model on the COCO dataset
 
 1. COCO Dataset
    - Download the COCO dataset
-   - Update the paths in `yolov1_config.yaml`:
+   - Update the paths in `config_yolov1.yaml`:
      - `root_dir`: Path to COCO images directory
      - `train_ann_file`: Path to COCO train annotations
      - `val_ann_file`: Path to COCO validation annotations
@@ -18,7 +18,7 @@ This document provides guidance on training the YOLOv1 model on the COCO dataset
 
 ## Configuration Setup
 
-1. Model Parameters (`yolov1_config.yaml`)
+1. Model Parameters (`config_yolov1.yaml`)
    - `split_size`: Grid size (default: 7x7)
    - `num_boxes`: Bounding boxes per cell (default: 2)
    - `num_classes`: Number of classes (80 for COCO)
