@@ -16,10 +16,16 @@ import sys
 import yaml
 from datetime import datetime
 
-from yolov1 import YOLOv1
-from loss import YOLOLoss
-from dataset import CocoDataset
-from training_utils import calculate_map, EarlyStopping, VisualizationHelper
+try:  # Allow execution via python -m or direct script
+    from .yolov1 import YOLOv1
+    from .loss import YOLOLoss
+    from .dataset import CocoDataset
+    from .training_utils import calculate_map, EarlyStopping, VisualizationHelper
+except ImportError:  # pragma: no cover
+    from yolov1 import YOLOv1
+    from loss import YOLOLoss
+    from dataset import CocoDataset
+    from training_utils import calculate_map, EarlyStopping, VisualizationHelper
 
 logger = logging.getLogger(__name__)
 
